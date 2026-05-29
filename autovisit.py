@@ -42,6 +42,7 @@ log = logging.getLogger(__name__)
 def parse_args():
     import argparse
     parser = argparse.ArgumentParser()
+    parser.add_argument("--list", action="store_true", help="Afficher la config des sites et quitter")
     parser.add_argument("--silent",  action="store_true", help="Aucune notification")
     parser.add_argument("--mp",      action="store_true", help="Notifier les alertes MP")
     parser.add_argument("--error",   action="store_true", help="Notifier les erreurs")
@@ -80,16 +81,61 @@ def send_pushover(cfg, subject, body):
     except Exception as e:
         log.error("Echec Pushover : " + str(e))
 
-def extract_csrf(html):
-    # Methode precise : balise meta name="csrf-token"
-    match = re.search(r'<meta name="csrf-token"\s+content="([^"]+)"', html)
-    if match:
-        return match.group(1)
-    # Fallback : input hidden _token
-    match = re.search(r'<input[^>]+name="_token"[^>]+value="([^"]+)"', html)
-    if match:
-        return match.group(1)
+
+def extract_csrf(html, field_name=None):
+    # Si le nom du champ est connu, cherche directement
+    if field_name:
+        match = re.search(
+            r'<input[^>]+name="' + re.escape(field_name) + r'"[^>]+value="([^"]+)"', html
+        )
+        if match:
+            return match.group(1)
+        match = re.search(
+            r'<input[^>]+value="([^"]+)"[^>]+name="' + re.escape(field_name) + r'"', html
+        )
+        if match:
+            return match.group(1)
+        return None
+    # Détection automatique — ordre de priorité
+    patterns = [
+        r'<meta name="csrf-token"\s+content="([^"]+)"',           # Laravel/Vue meta
+        r'<input[^>]+name="_token"[^>]+value="([^"]+)"',           # Laravel form
+        r'<input[^>]+name="csrf_token"[^>]+value="([^"]+)"',       # Flask/Werkzeug
+        r'<input[^>]+name="_csrf_token"[^>]+value="([^"]+)"',      # Symfony
+        r'<input[^>]+name="__RequestVerificationToken"[^>]+value="([^"]+)"',  # ASP.NET
+        # ordre inversé attributs (value avant name)
+        r'<input[^>]+value="([^"]+)"[^>]+name="_token"',
+        r'<input[^>]+value="([^"]+)"[^>]+name="csrf_token"',
+        r'<input[^>]+value="([^"]+)"[^>]+name="_csrf_token"',
+        r'<input[^>]+value="([^"]+)"[^>]+name="__RequestVerificationToken"',
+    ]
+    for pattern in patterns:
+        match = re.search(pattern, html)
+        if match:
+            return match.group(1)
     return None
+
+def extract_hidden_fields(html, exclude=None):
+    exclude = exclude or []
+    fields = {}
+    for match in re.finditer(
+        r'<input[^>]+type=["\']hidden["\'][^>]*>', html, re.IGNORECASE
+    ):
+        tag = match.group(0)
+        name_m  = re.search(r'name=["\']([^"\']+)["\']', tag)
+        value_m = re.search(r'value=["\']([^"\']*)["\']', tag)
+        if name_m:
+            name = name_m.group(1)
+            if name not in exclude:
+                fields[name] = value_m.group(1) if value_m else ""
+    return fields
+
+def extract_stats(html, patterns):
+    stats = {}
+    for key, pattern in patterns.items():
+        match = re.search(pattern, html, re.IGNORECASE | re.DOTALL)
+        stats[key] = match.group(1).strip() if match else "N/A"
+    return stats
 
 def visit_site(site):
     name = site["name"]
@@ -129,16 +175,25 @@ def visit_site(site):
 
         time.sleep(random.uniform(1.5, 3.0))
 
-        csrf_token = extract_csrf(r.text)
+
+        csrf_field = site.get("csrf_field")
+        csrf_token = extract_csrf(r.text, csrf_field)
 
         payload = {
             site["username_field"]: site["username"],
             site["password_field"]: site["password"],
         }
 
+        if site.get("extract_hidden_fields"):
+            hidden = extract_hidden_fields(r.text, exclude=["_token", site.get("csrf_field", "")])
+            payload.update(hidden)
+            log.info("[" + name + "] Champs hidden extraits : " + ", ".join(hidden.keys()))
+
+
         if csrf_token and not site.get("api_json"):
-            payload["_token"] = csrf_token
-            log.info("[" + name + "] Token CSRF detecte et inclus")
+            field_key = csrf_field if csrf_field else "_token"
+            payload[field_key] = csrf_token
+            log.info("[" + name + "] Token CSRF detecte et inclus (" + field_key + ")")
 
         totp_secret = site.get("totp_secret")
         totp_url = site.get("totp_url")
@@ -210,6 +265,19 @@ def visit_site(site):
                             verify_url = site.get("verify_url")
                             if custom_keywords and verify_url:
                                 rv = session.get(verify_url, timeout=20, headers={"Accept-Encoding": "identity"} if use_curl else {})
+                                # Alertes MP
+                                alert_keywords = site.get("alert_keywords", [])
+                                if alert_keywords:
+                                    for kw in alert_keywords:
+                                        if kw.lower() in rv.text.lower():
+                                            log.info("[" + name + "] ALERTE : mot-cle detecte : " + kw)
+                                            return True, ("ALERTE", name, kw, True)
+                                # Stats
+                                site_stats = site.get("stats", {})
+                                if site_stats:
+                                    stats = extract_stats(rv.text, site_stats)
+                                    stats_str = " | ".join(k + ": " + v for k, v in stats.items())
+                                    log.info("[" + name + "] Stats -- " + stats_str)
                                 matched = next((kw for kw in custom_keywords if kw.lower() in rv.text.lower()), None)
                                 if matched:
                                     msg = "OK [" + name + "] Connexion reussie apres MFA JSON (mot-cle : " + matched + ")"
@@ -258,12 +326,22 @@ def visit_site(site):
                 log.error("[" + name + "] pyotp non installe -- 2FA impossible")
                 return False, "ECHEC [" + name + "] pyotp manquant"
             log.info("[" + name + "] Page 2FA detectee, envoi du code TOTP")
+            # GET de la page 2FA pour recuperer le bon token CSRF
+            r2fa = session.get(r2.url, timeout=20)
             totp_code = pyotp.TOTP(totp_secret).now()
             totp_field = site.get("totp_field", "code")
             totp_payload = {totp_field: totp_code}
-            csrf_token2 = extract_csrf(r2.text)
+            csrf_field2 = site.get("csrf_field")
+            csrf_token2 = extract_csrf(r2fa.text, csrf_field2)
             if csrf_token2:
-                totp_payload["_token"] = csrf_token2
+                field_key2 = csrf_field2 if csrf_field2 else "_token"
+                totp_payload[field_key2] = csrf_token2
+                log.info("[" + name + "] Token CSRF 2FA inclus (" + field_key2 + ")")
+            # Champs hidden supplementaires sur la page 2FA (toujours extrait)
+            hidden2 = extract_hidden_fields(r2fa.text, exclude=[csrf_field2 or "_token"])
+            totp_payload.update(hidden2)
+            if hidden2:
+                log.info("[" + name + "] Champs hidden 2FA extraits : " + ", ".join(hidden2.keys()))
             time.sleep(random.uniform(0.5, 1.0))
             r3 = session.post(r2.url, data=totp_payload, timeout=20, allow_redirects=True)
             body_lower = r3.text.lower()
@@ -272,6 +350,18 @@ def visit_site(site):
             if custom_keywords:
                 matched = next((kw for kw in custom_keywords if kw.lower() in body_lower), None)
                 if matched:
+                    # Alertes MP avant de retourner OK
+                    alert_keywords = site.get("alert_keywords", [])
+                    for kw in alert_keywords:
+                        if kw.lower() in body_lower:
+                            log.info("[" + name + "] ALERTE : mot-cle detecte : " + kw)
+                            return True, ("ALERTE", name, kw, True)
+                    # Stats
+                    site_stats = site.get("stats", {})
+                    if site_stats:
+                        stats = extract_stats(r3.text, site_stats)
+                        stats_str = " | ".join(k + ": " + v for k, v in stats.items())
+                        log.info("[" + name + "] Stats -- " + stats_str)
                     msg = "OK [" + name + "] Connexion reussie apres 2FA (mot-cle : " + matched + ")"
                     log.info(msg)
                     return True, msg
@@ -299,6 +389,13 @@ def visit_site(site):
             r2 = session.get(verify_url, timeout=20)
 
         body_lower = r2.text.lower()
+
+        # Stats
+        site_stats = site.get("stats", {})
+        if site_stats:
+            stats = extract_stats(r2.text, site_stats)
+            stats_str = " | ".join(k + ": " + v for k, v in stats.items())
+            log.info("[" + name + "] Stats -- " + stats_str)
 
         # Alertes MP
         alert_keywords = site.get("alert_keywords", [])
@@ -349,9 +446,67 @@ def visit_site(site):
         log.error(msg)
         return False, msg
 
+def list_sites(cfg):
+    sites = cfg.get("sites", [])
+    if not sites:
+        print("Aucun site configure.")
+        return
+
+    def trunc(url, n=28):
+        domain = url.split("/")[2] if "//" in url else url
+        return domain[:n] + "…" if len(domain) > n else domain
+
+    def get_2fa_type(s):
+        if s.get("api_json") and s.get("totp_url"):
+            return "api_json"
+        if s.get("totp_url"):
+            return "page"
+        if s.get("totp_secret"):
+            return "inline"
+        return "-"
+
+    COL = [
+        ("Nom",    20),
+        ("Actif",   5),
+        ("URL",    30),
+        ("TOTP",    4),
+        ("2FA",     8),
+        ("Stats",   5),
+        ("MP",      4),
+        ("Curl",    4),
+    ]
+
+    sep = "─" * (sum(w for _, w in COL) + len(COL) * 2)
+    header = "  ".join(name.ljust(w) for name, w in COL)
+    print(header)
+    print(sep)
+
+    for s in sites:
+        actif  = "✓" if s.get("enabled", True) else "✗"
+        totp   = "✓" if s.get("totp_secret") else "-"
+        two_fa = get_2fa_type(s)
+        stats  = "✓" if s.get("stats") else "-"
+        mp     = "✓" if s.get("alert_keywords") else "-"
+        curl   = "✓" if s.get("use_curl_cffi") else "-"
+
+        row = [
+            s["name"][:COL[0][1]],
+            actif,
+            trunc(s.get("url", ""), COL[2][1]),
+            totp,
+            two_fa,
+            stats,
+            mp,
+            curl,
+        ]
+        print("  ".join(str(v).ljust(w) for v, (_, w) in zip(row, COL)))
+
 def main():
     args  = parse_args()
     cfg   = load_config()
+    if args.list:
+        list_sites(cfg)
+        sys.exit(0)
     sites = [s for s in cfg.get("sites", []) if s.get("enabled", True)]
     if args.site:
         def matches(s):

@@ -5,13 +5,19 @@
   },
   "sites": [
     {
-      "name": "Site1",
-      "aliases": ["alias1", "alias2"],
+      "name": "Site1-Classique",
+      "aliases": ["s1", "alias1"],
       "url": "https://monsite.com/login",
       "post_url": "https://monsite.com/login",
       "username_field": "username",
       "password_field": "password",
       "success_keywords": ["MOT_CLE_APRES_CONNEXION"],
+      "alert_keywords": ["MOT_CLE_MP_NON_LU"],
+      "stats": {
+        "upload": "PATTERN_REGEX_UPLOAD",
+        "download": "PATTERN_REGEX_DOWNLOAD",
+        "ratio": "PATTERN_REGEX_RATIO"
+      },
       "username": "TON_PSEUDO",
       "password": "TON_MOT_DE_PASSE",
       "enabled": true
@@ -27,23 +33,74 @@
       "totp_field": "mfa",
       "success_url_contains": "index.php",
       "success_keywords": ["MOT_CLE_APRES_CONNEXION"],
-      "alert_keywords": ["message"],
+      "alert_keywords": ["MOT_CLE_MP_NON_LU"],
+      "stats": {
+        "upload": "PATTERN_REGEX_UPLOAD",
+        "download": "PATTERN_REGEX_DOWNLOAD",
+        "ratio": "PATTERN_REGEX_RATIO",
+        "bonus": "PATTERN_REGEX_BONUS"
+      },
       "username": "TON_PSEUDO",
       "password": "TON_MOT_DE_PASSE",
       "enabled": true
     },
     {
-      "name": "Site3-API-JSON-Cloudflare",
+      "name": "Site3-Laravel-UNIT3D",
+      "aliases": ["s3"],
       "url": "https://monsite3.com/login",
+      "post_url": "https://monsite3.com/login",
+      "username_field": "username",
+      "password_field": "password",
+      "csrf_field": "_token",
+      "extract_hidden_fields": true,
+      "extra_fields": {"_username": ""},
+      "verify_url": "https://monsite3.com/",
+      "success_keywords": ["MOT_CLE_APRES_CONNEXION"],
+      "alert_keywords": ["MOT_CLE_MP_NON_LU"],
+      "stats": {
+        "upload": "PATTERN_REGEX_UPLOAD",
+        "download": "PATTERN_REGEX_DOWNLOAD",
+        "ratio": "PATTERN_REGEX_RATIO",
+        "bonus": "PATTERN_REGEX_BONUS",
+        "seeding": "PATTERN_REGEX_SEEDING"
+      },
+      "use_curl_cffi": true,
+      "username": "TON_PSEUDO",
+      "password": "TON_MOT_DE_PASSE",
+      "enabled": true
+    },
+    {
+      "name": "Site4-ASP-NET",
+      "aliases": ["s4"],
+      "url": "https://monsite4.com/login",
+      "post_url": "https://monsite4.com/login",
+      "username_field": "Username",
+      "password_field": "Password",
+      "csrf_field": "__RequestVerificationToken",
+      "success_keywords": ["MOT_CLE_APRES_CONNEXION"],
+      "alert_keywords": ["MOT_CLE_MP_NON_LU"],
+      "stats": {
+        "upload": "PATTERN_REGEX_UPLOAD",
+        "download": "PATTERN_REGEX_DOWNLOAD",
+        "ratio": "PATTERN_REGEX_RATIO"
+      },
+      "username": "TON_PSEUDO",
+      "password": "TON_MOT_DE_PASSE",
+      "enabled": true
+    },
+    {
+      "name": "Site5-API-JSON-Cloudflare",
+      "aliases": ["s5"],
+      "url": "https://monsite5.com/login",
       "pre_visit_urls": [
-        "https://monsite3.com/api/settings/public"
+        "https://monsite5.com/api/settings/public"
       ],
-      "post_url": "https://monsite3.com/api/auth/login",
-      "totp_url": "https://monsite3.com/api/auth/mfa/totp",
+      "post_url": "https://monsite5.com/api/auth/login",
+      "totp_url": "https://monsite5.com/api/auth/mfa/totp",
       "totp_secret": "TON_SECRET_TOTP",
       "username_field": "username",
       "password_field": "password",
-      "verify_url": "https://monsite3.com/",
+      "verify_url": "https://monsite5.com/",
       "success_keywords": ["MOT_CLE_APRES_CONNEXION"],
       "api_json": true,
       "use_curl_cffi": true,
@@ -52,9 +109,10 @@
       "enabled": true
     },
     {
-      "name": "Site4-API-JSON-JWT",
-      "url": "https://monsite4.com/login",
-      "post_url": "https://api.monsite4.com/api/v1/auth/login",
+      "name": "Site6-API-JSON-JWT",
+      "aliases": ["s6"],
+      "url": "https://monsite6.com/login",
+      "post_url": "https://api.monsite6.com/api/v1/auth/login",
       "username_field": "username",
       "password_field": "password",
       "extra_fields": {"remember_me": true},
@@ -66,40 +124,44 @@
       "enabled": true
     },
     {
-      "name": "Site5-TOTP-2etapes",
-      "url": "https://monsite5.com/login",
-      "post_url": "https://monsite5.com/login",
+      "name": "Site7-TOTP-2etapes",
+      "aliases": ["s7"],
+      "url": "https://monsite7.com/login",
+      "post_url": "https://monsite7.com/login",
       "username_field": "username",
       "password_field": "password",
       "totp_secret": "TON_SECRET_TOTP",
       "totp_field": "code",
-      "totp_url": "https://monsite5.com/login/2fa",
+      "totp_url": "https://monsite7.com/login/2fa",
+      "extract_hidden_fields": true,
       "success_keywords": ["MOT_CLE_APRES_CONNEXION"],
       "username": "TON_PSEUDO",
       "password": "TON_MOT_DE_PASSE",
       "enabled": true
     },
     {
-      "name": "Site6-AJAX",
-      "url": "https://monsite6.com/",
-      "post_url": "https://monsite6.com/includes/login.php?action=login&type=user",
+      "name": "Site8-AJAX",
+      "aliases": ["s8"],
+      "url": "https://monsite8.com/",
+      "post_url": "https://monsite8.com/includes/login.php?action=login&type=user",
       "username_field": "pseudo",
       "password_field": "password",
       "extra_headers": {
         "X-Requested-With": "XMLHttpRequest",
-        "Referer": "https://monsite6.com/",
-        "Origin": "https://monsite6.com"
+        "Referer": "https://monsite8.com/",
+        "Origin": "https://monsite8.com"
       },
-      "verify_url": "https://monsite6.com/",
+      "verify_url": "https://monsite8.com/",
       "success_keywords": ["MOT_CLE_APRES_CONNEXION"],
       "username": "TON_PSEUDO",
       "password": "TON_MOT_DE_PASSE",
       "enabled": true
     },
     {
-      "name": "Site7-desactive",
-      "url": "https://monsite7.com/login",
-      "post_url": "https://monsite7.com/login",
+      "name": "Site9-desactive",
+      "aliases": ["s9"],
+      "url": "https://monsite9.com/login",
+      "post_url": "https://monsite9.com/login",
       "username_field": "username",
       "password_field": "password",
       "success_keywords": ["MOT_CLE_APRES_CONNEXION"],
