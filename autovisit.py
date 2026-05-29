@@ -22,7 +22,7 @@ try:
 except ImportError:
     CURL_CFFI_AVAILABLE = False
 
-BASE_DIR = Path(__file__).parent
+BASE_DIR = Path(__file__).resolve().parent
 CONFIG   = BASE_DIR / "sites.json"
 LOG_FILE = BASE_DIR / "logs" / f"visit_{datetime.now().strftime('%Y-%m')}.log"
 
