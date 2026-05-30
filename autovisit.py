@@ -303,7 +303,8 @@ def visit_site(site):
                                 if alert_keywords:
                                     for kw in alert_keywords:
                                         if kw.lower() in rv.text.lower():
-                                            log.info("[" + name + "] ALERTE : mot-cle detecte : " + kw)
+                                            alert_label = site.get("alert_label", kw)
+                                            log.info("[" + name + "] ALERTE : " + alert_label)
                                             return True, ("ALERTE", name, kw, True)
                                 # Stats
                                 site_stats = site.get("stats", {})
@@ -353,7 +354,8 @@ def visit_site(site):
                             alert_keywords = site.get("alert_keywords", [])
                             for kw in alert_keywords:
                                 if kw.lower() in rv.text.lower():
-                                    log.info("[" + name + "] ALERTE : mot-cle detecte : " + kw)
+                                    alert_label = site.get("alert_label", kw)
+                                    log.info("[" + name + "] ALERTE : " + alert_label)
                                     return True, ("ALERTE", name, kw, True)
                             # Stats
                             site_stats = site.get("stats", {})
@@ -416,7 +418,8 @@ def visit_site(site):
                     alert_keywords = site.get("alert_keywords", [])
                     for kw in alert_keywords:
                         if kw.lower() in body_lower:
-                            log.info("[" + name + "] ALERTE : mot-cle detecte : " + kw)
+                            alert_label = site.get("alert_label", kw)
+                            log.info("[" + name + "] ALERTE : " + alert_label)
                             return True, ("ALERTE", name, kw, True)
                     # Stats
                     site_stats = site.get("stats", {})
@@ -464,7 +467,8 @@ def visit_site(site):
         if alert_keywords:
             for kw in alert_keywords:
                 if kw.lower() in body_lower:
-                    log.info("[" + name + "] ALERTE : mot-cle detecte : " + kw)
+                    alert_label = site.get("alert_label", kw)
+                    log.info("[" + name + "] ALERTE : " + alert_label)
                     return True, ("ALERTE", name, kw, True)
 
         custom_keywords = site.get("success_keywords", [])
