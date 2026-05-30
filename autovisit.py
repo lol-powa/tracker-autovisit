@@ -130,11 +130,44 @@ def extract_hidden_fields(html, exclude=None):
                 fields[name] = value_m.group(1) if value_m else ""
     return fields
 
+def fmt_bytes(val):
+    try:
+        n = float(val)
+    except (ValueError, TypeError):
+        return str(val)
+    for unit in ["o", "Ko", "Mo", "Go", "To", "Po"]:
+        if abs(n) < 1024.0:
+            return f"{n:.2f} {unit}"
+        n /= 1024.0
+    return f"{n:.2f} Eo"
+
 def extract_stats(html, patterns):
     stats = {}
     for key, pattern in patterns.items():
         match = re.search(pattern, html, re.IGNORECASE | re.DOTALL)
         stats[key] = match.group(1).strip() if match else "N/A"
+    return stats
+
+def extract_stats_json(data, fields):
+    stats = {}
+    for key, path in fields.items():
+        try:
+            val = data
+            for part in path.split("."):
+                val = val[part] if isinstance(val, dict) else val[int(part)]
+            # Conversion automatique si la clé suggère des octets
+            if any(w in key.lower() for w in ["upload", "download", "bytes", "size"]):
+                val = fmt_bytes(val)
+            elif key.lower() == "ratio":
+                try:
+                    val = f"{float(val):.2f}"
+                except (ValueError, TypeError):
+                    val = str(val)
+            else:
+                val = str(val)
+            stats[key] = val
+        except (KeyError, IndexError, TypeError):
+            stats[key] = "N/A"
     return stats
 
 def visit_site(site):
@@ -307,7 +340,15 @@ def visit_site(site):
                             if use_curl:
                                 auth_headers["Accept-Encoding"] = "identity"
                             rv = session.get(verify_url, headers=auth_headers, timeout=20)
-                            log.info("[" + name + "] DEBUG verify_url HTTP " + str(rv.status_code) + " -- " + rv.text[:200])
+                            stats_json = site.get("stats_json", {})
+                            if stats_json:
+                                try:
+                                    jdata = rv.json()
+                                    stats = extract_stats_json(jdata, stats_json)
+                                    stats_str = " | ".join(k + ": " + v for k, v in stats.items())
+                                    log.info("[" + name + "] Stats -- " + stats_str)
+                                except Exception as e:
+                                    log.warning("[" + name + "] Erreur parsing stats JSON : " + str(e))
                             # Alertes MP
                             alert_keywords = site.get("alert_keywords", [])
                             for kw in alert_keywords:
