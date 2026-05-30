@@ -352,3 +352,24 @@ La notification Pushover reçue aura le titre **"Autovisit - MP"** et le corps *
 - `sites.json` contient tes mots de passe et secrets TOTP en clair — protège-le : `chmod 600 sites.json`
 - Ne partage jamais ton `sites.json`
 - `SITES.md` (configs personnelles) est dans le `.gitignore` — ne le commite pas
+
+---
+
+## Liste des sites configurés
+
+```bash
+autovisit --list
+```
+
+Affiche un tableau récapitulatif de tous les sites configurés dans `sites.json` :
+
+| Colonne | Description |
+|---|---|
+| Nom | Nom du site |
+| Actif | Site activé ou non |
+| URL | Domaine |
+| TOTP | Secret TOTP configuré |
+| 2FA | Type de 2FA (inline, page, api_json) |
+| Stats | Patterns stats configurés |
+| MP | alert_keywords configurés |
+| Curl | use_curl_cffi activé |
