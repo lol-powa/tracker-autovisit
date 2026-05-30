@@ -48,9 +48,10 @@ def parse_args():
     parser.add_argument("--error",   action="store_true", help="Notifier les erreurs")
     parser.add_argument("--verbose", action="store_true", help="Toutes les notifications")
     parser.add_argument("--site",    type=str, nargs="+", default=None, help="Visiter uniquement ces sites")
+    parser.add_argument("--stats",   action="store_true", help="Afficher uniquement les lignes de stats")
     args = parser.parse_args()
     # Par defaut : --mp --error si aucun mode specifie
-    if not any([args.silent, args.mp, args.error, args.verbose]):
+    if not any([args.silent, args.mp, args.error, args.verbose, args.stats]):
         args.mp = True
         args.error = True
     return args
@@ -571,10 +572,19 @@ def list_sites(cfg):
 def main():
     args  = parse_args()
     cfg   = load_config()
+    if args.stats:
+        for handler in logging.root.handlers:
+            if isinstance(handler, logging.StreamHandler) and handler.stream == sys.stdout:
+                handler.addFilter(lambda r: "Stats --" in r.getMessage())
     if args.list:
         list_sites(cfg)
         sys.exit(0)
     sites = [s for s in cfg.get("sites", []) if s.get("enabled", True)]
+    if args.stats:
+        sites = [s for s in sites if s.get("stats") or s.get("stats_json")]
+        if not sites:
+            log.warning("Aucun site avec stats configure.")
+            return
     if args.site:
         def matches(s):
             return any(
@@ -602,10 +612,7 @@ def main():
             results_ok.append("OK [" + site_name + "] " + alerte_msg)
         else:
             (results_ok if ok else results_err).append(msg)
-        if site != sites[-1]:
-            delay = random.uniform(5, 15)
-            log.info("Pause de " + str(int(delay)) + "s avant le prochain site...")
-            time.sleep(delay)
+
     log.info("=== Resume ===")
     for m in results_ok + results_err:
         log.info(m)
