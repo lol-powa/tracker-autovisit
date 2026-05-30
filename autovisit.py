@@ -172,6 +172,7 @@ def extract_stats_json(data, fields):
 
 def visit_site(site):
     name = site["name"]
+    timeout = site.get("timeout", 20)
     use_curl = site.get("use_curl_cffi", False)
 
     if use_curl:
@@ -191,7 +192,7 @@ def visit_site(site):
     try:
         log.info("[" + name + "] Chargement de la page de login : " + site["url"])
         get_headers = {"Accept-Encoding": "identity"} if use_curl else {}
-        r = session.get(site["url"], timeout=20, headers=get_headers)
+        r = session.get(site["url"], timeout=timeout, headers=get_headers)
         if r.status_code != 200:
             msg = "ECHEC [" + name + "] Page de login inaccessible (HTTP " + str(r.status_code) + ")"
             log.error(msg)
@@ -200,7 +201,7 @@ def visit_site(site):
         # GET préliminaires optionnels
         for pre_url in site.get("pre_visit_urls", []):
             try:
-                session.get(pre_url, timeout=20, headers=get_headers)
+                session.get(pre_url, timeout=timeout, headers=get_headers)
                 log.info("[" + name + "] GET preliminaire : " + pre_url)
                 time.sleep(random.uniform(0.3, 0.8))
             except:
@@ -262,9 +263,9 @@ def visit_site(site):
                 origin = "https://" + site["url"].split("/")[2]
                 post_headers["Origin"] = origin
                 post_headers["Referer"] = site["url"]
-            r2 = session.post(post_url, json=payload, headers=post_headers, timeout=20, allow_redirects=False)
+            r2 = session.post(post_url, json=payload, headers=post_headers, timeout=timeout, allow_redirects=False)
         else:
-            r2 = session.post(post_url, data=payload, timeout=20, allow_redirects=True)
+            r2 = session.post(post_url, data=payload, timeout=timeout, allow_redirects=True)
 
         if site.get("api_json"):
             log.info("[" + name + "] POST -- HTTP " + str(r2.status_code) + " -- body : " + r2.text[:300])
@@ -290,14 +291,14 @@ def visit_site(site):
                         totp_headers["Accept-Encoding"] = "identity"
                         totp_headers["Origin"] = "https://" + site["url"].split("/")[2]
                         totp_headers["Referer"] = site["url"]
-                    r3 = session.post(totp_url, json={"code": totp_code}, headers=totp_headers, timeout=20, allow_redirects=False)
+                    r3 = session.post(totp_url, json={"code": totp_code}, headers=totp_headers, timeout=timeout, allow_redirects=False)
                     try:
                         data3 = r3.json()
                         if data3.get("success"):
                             custom_keywords = site.get("success_keywords", [])
                             verify_url = site.get("verify_url")
                             if custom_keywords and verify_url:
-                                rv = session.get(verify_url, timeout=20, headers={"Accept-Encoding": "identity"} if use_curl else {})
+                                rv = session.get(verify_url, timeout=timeout, headers={"Accept-Encoding": "identity"} if use_curl else {})
                                 # Alertes MP
                                 alert_keywords = site.get("alert_keywords", [])
                                 if alert_keywords:
@@ -340,7 +341,7 @@ def visit_site(site):
                             auth_headers = {"Authorization": "Bearer " + jwt_token}
                             if use_curl:
                                 auth_headers["Accept-Encoding"] = "identity"
-                            rv = session.get(verify_url, headers=auth_headers, timeout=20)
+                            rv = session.get(verify_url, headers=auth_headers, timeout=timeout)
                             stats_json = site.get("stats_json", {})
                             if stats_json:
                                 try:
@@ -391,7 +392,7 @@ def visit_site(site):
                 return False, "ECHEC [" + name + "] pyotp manquant"
             log.info("[" + name + "] Page 2FA detectee, envoi du code TOTP")
             # GET de la page 2FA pour recuperer le bon token CSRF
-            r2fa = session.get(r2.url, timeout=20)
+            r2fa = session.get(r2.url, timeout=timeout)
             totp_code = pyotp.TOTP(totp_secret).now()
             totp_field = site.get("totp_field", "code")
             totp_payload = {totp_field: totp_code}
@@ -407,7 +408,7 @@ def visit_site(site):
             if hidden2:
                 log.info("[" + name + "] Champs hidden 2FA extraits : " + ", ".join(hidden2.keys()))
             time.sleep(random.uniform(0.5, 1.0))
-            r3 = session.post(r2.url, data=totp_payload, timeout=20, allow_redirects=True)
+            r3 = session.post(r2.url, data=totp_payload, timeout=timeout, allow_redirects=True)
             body_lower = r3.text.lower()
 
             custom_keywords = site.get("success_keywords", [])
@@ -451,7 +452,7 @@ def visit_site(site):
         # GET de vérification optionnel (ex: login AJAX qui retourne body vide)
         verify_url = site.get("verify_url")
         if verify_url:
-            r2 = session.get(verify_url, timeout=20)
+            r2 = session.get(verify_url, timeout=timeout)
 
         body_lower = r2.text.lower()
 
