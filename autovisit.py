@@ -299,6 +299,27 @@ def visit_site(site):
                 success_json_field = site.get("success_json_field")
                 if success_json_field:
                     if data.get(success_json_field):
+                        # GET verify_url avec Bearer token si présent
+                        verify_url = site.get("verify_url")
+                        jwt_token = data.get("token") or data.get("access_token")
+                        if verify_url and jwt_token:
+                            auth_headers = {"Authorization": "Bearer " + jwt_token}
+                            if use_curl:
+                                auth_headers["Accept-Encoding"] = "identity"
+                            rv = session.get(verify_url, headers=auth_headers, timeout=20)
+                            log.info("[" + name + "] DEBUG verify_url HTTP " + str(rv.status_code) + " -- " + rv.text[:200])
+                            # Alertes MP
+                            alert_keywords = site.get("alert_keywords", [])
+                            for kw in alert_keywords:
+                                if kw.lower() in rv.text.lower():
+                                    log.info("[" + name + "] ALERTE : mot-cle detecte : " + kw)
+                                    return True, ("ALERTE", name, kw, True)
+                            # Stats
+                            site_stats = site.get("stats", {})
+                            if site_stats:
+                                stats = extract_stats(rv.text, site_stats)
+                                stats_str = " | ".join(k + ": " + v for k, v in stats.items())
+                                log.info("[" + name + "] Stats -- " + stats_str)
                         msg = "OK [" + name + "] Connexion reussie (champ JSON : " + success_json_field + ")"
                         log.info(msg)
                         return True, msg
