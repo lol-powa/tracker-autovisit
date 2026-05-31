@@ -458,7 +458,6 @@ def visit_site(site):
                                     stats_str = " | ".join(k + ": " + v for k, v in stats.items())
                                     log.info("[" + name + "] Stats -- " + stats_str)
                                 except Exception as e:
-                                    log.info("[" + name + "] DEBUG rv : " + rv.text[:300])
                                     log.warning("[" + name + "] Erreur parsing stats JSON : " + str(e))
                             # Alertes MP
                             alert_keywords = site.get("alert_keywords", [])
