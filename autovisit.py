@@ -22,6 +22,12 @@ try:
 except ImportError:
     CURL_CFFI_AVAILABLE = False
 
+try:
+    from playwright.sync_api import sync_playwright
+    PLAYWRIGHT_AVAILABLE = True
+except ImportError:
+    PLAYWRIGHT_AVAILABLE = False
+
 BASE_DIR = Path(__file__).resolve().parent
 CONFIG   = BASE_DIR / "sites.json"
 LOG_FILE = BASE_DIR / "logs" / f"visit_{datetime.now().strftime('%Y-%m')}.log"
@@ -170,6 +176,94 @@ def extract_stats_json(data, fields):
         except (KeyError, IndexError, TypeError):
             stats[key] = "N/A"
     return stats
+
+def visit_site_playwright(site):
+    name = site["name"]
+    timeout = site.get("timeout", 20) * 1000
+
+    if not PLAYWRIGHT_AVAILABLE:
+        msg = "ECHEC [" + name + "] playwright non installe"
+        log.error(msg)
+        return False, msg
+
+    try:
+        with sync_playwright() as p:
+            browser = p.firefox.launch(headless=True)
+            page = browser.new_page()
+            log.info("[" + name + "] Chargement de la page de login (Playwright) : " + site["url"])
+            page.goto(site["url"], timeout=timeout)
+
+            username_field = site.get("username_field", "username")
+            password_field = site.get("password_field", "password")
+            submit_selector = site.get("playwright_submit", "button[type=submit]")
+
+            page.fill("input[name='" + username_field + "']", site["username"])
+            page.fill("input[name='" + password_field + "']", site["password"])
+            page.click(submit_selector)
+            page.wait_for_load_state("networkidle", timeout=timeout)
+
+            log.info("[" + name + "] URL apres login : " + page.url)
+
+            cookies = page.context.cookies()
+            browser.close()
+
+        session = requests.Session()
+        session.headers.update({
+            "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64; rv:124.0) Gecko/20100101 Firefox/124.0",
+            "Accept": "text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8",
+            "Accept-Language": "fr-FR,fr;q=0.9,en;q=0.8",
+        })
+        for c in cookies:
+            session.cookies.set(c["name"], c["value"], domain=c.get("domain", "").lstrip("."))
+
+        verify_url = site.get("verify_url")
+        if verify_url:
+            rv = session.get(verify_url, timeout=site.get("timeout", 20))
+        else:
+            msg = "ECHEC [" + name + "] verify_url manquant (Playwright)"
+            log.error(msg)
+            return False, msg
+
+        body_lower = rv.text.lower()
+
+        site_stats = site.get("stats", {})
+        if site_stats:
+            stats = extract_stats(rv.text, site_stats)
+            stats_str = " | ".join(k + ": " + v for k, v in stats.items())
+            log.info("[" + name + "] Stats -- " + stats_str)
+
+        alert_keywords = site.get("alert_keywords", [])
+        for kw in alert_keywords:
+            if kw.lower() in body_lower:
+                alert_label = site.get("alert_label", kw)
+                log.info("[" + name + "] ALERTE : " + alert_label)
+                return True, ("ALERTE", name, kw, True)
+
+        custom_keywords = site.get("success_keywords", [])
+        if custom_keywords:
+            matched = next((kw for kw in custom_keywords if kw.lower() in body_lower), None)
+            if matched:
+                msg = "OK [" + name + "] Connexion reussie (mot-cle : " + matched + ")"
+                log.info(msg)
+                return True, msg
+            else:
+                msg = "ECHEC [" + name + "] Mot-cle introuvable apres Playwright -- URL : " + rv.url
+                log.warning(msg)
+                return False, msg
+
+        if any(w in body_lower for w in ["logout", "deconnexion", "mon compte", "my account", "bienvenue", "welcome", "sign out"]):
+            msg = "OK [" + name + "] Connexion reussie (Playwright)"
+            log.info(msg)
+            return True, msg
+
+        msg = "ECHEC [" + name + "] Connexion douteuse apres Playwright -- URL : " + rv.url
+        log.warning(msg)
+        return False, msg
+
+    except Exception as e:
+        msg = "ECHEC [" + name + "] Erreur Playwright : " + str(e)
+        log.error(msg)
+        return False, msg
 
 def visit_site(site):
     name = site["name"]
@@ -616,7 +710,7 @@ def main():
     results_ok  = []
     results_err = []
     for site in sites:
-        ok, msg = visit_site(site)
+        ok, msg = visit_site_playwright(site) if site.get("use_playwright") else visit_site(site)
         if ok and isinstance(msg, tuple) and msg[0] == "ALERTE":
             _, site_name, kw, _ = msg
             alerte_msg = "MP non lu sur " + site_name
