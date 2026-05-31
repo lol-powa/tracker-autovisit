@@ -308,6 +308,9 @@ autovisit --error
 # Seulement les alertes MP
 autovisit --mp
 
+# Seulement les stats
+autovisit --stats
+
 # Toutes les notifications (erreurs + MP + succès)
 autovisit --verbose
 
