@@ -362,9 +362,6 @@ def visit_site(site):
         else:
             r2 = session.post(post_url, data=payload, timeout=timeout, allow_redirects=True)
 
-        if site.get("api_json"):
-            log.info("[" + name + "] POST -- HTTP " + str(r2.status_code) + " -- body : " + r2.text[:300])
-
         if site.get("api_json") and r2.status_code in [200, 201]:
             try:
                 data = r2.json()
@@ -459,6 +456,19 @@ def visit_site(site):
                                     log.info("[" + name + "] Stats -- " + stats_str)
                                 except Exception as e:
                                     log.warning("[" + name + "] Erreur parsing stats JSON : " + str(e))
+                            # Alertes MP via mp_url
+                            mp_url = site.get("mp_url")
+                            mp_json_field = site.get("mp_json_field", "total")
+                            if mp_url:
+                                try:
+                                    rmp = session.get(mp_url, headers=auth_headers, timeout=timeout)
+                                    mp_data = rmp.json()
+                                    mp_count = mp_data.get(mp_json_field, 0)
+                                    if mp_count and int(mp_count) > 0:
+                                        log.info("[" + name + "] ALERTE : " + str(mp_count) + " MP non lu(s)")
+                                        return True, ("ALERTE", name, "mp_url", True)
+                                except Exception as e:
+                                    log.warning("[" + name + "] Erreur mp_url : " + str(e))
                             # Alertes MP
                             alert_keywords = site.get("alert_keywords", [])
                             for kw in alert_keywords:
