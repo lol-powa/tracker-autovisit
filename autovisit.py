@@ -695,7 +695,7 @@ def list_sites(cfg):
         actif  = "✓" if s.get("enabled", True) else "✗"
         totp   = "✓" if s.get("totp_secret") else "-"
         two_fa = get_2fa_type(s)
-        stats  = "✓" if s.get("stats") else "-"
+        stats  = "✓" if s.get("stats") or s.get("stats_json") else "-"
         mp     = "✓" if s.get("alert_keywords") else "-"
         curl   = "✓" if s.get("use_curl_cffi") else "-"
 
