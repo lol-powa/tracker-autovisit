@@ -2,7 +2,7 @@
 
 Script Python pour visiter automatiquement des sites privés et éviter les désactivations de compte pour inactivité. Permet également de recevoir des alertes en cas de message privé reçu et de collecter des statistiques (ratio, upload, download, bonus...).
 
-Supporte les connexions classiques (form POST), Laravel/UNIT3D, ASP.NET, XenForo, les API JSON, le TOTP (2FA en ligne ou page dédiée), et les sites protégés par Cloudflare. Notifications via Pushover.
+Supporte les connexions classiques (form POST), Laravel/UNIT3D, ASP.NET, XenForo, les API JSON, le TOTP (2FA en ligne ou page dédiée), et les sites protégés par Cloudflare ou captcha invisible (via Playwright). Notifications via Pushover.
 
 ---
 
@@ -15,6 +15,14 @@ pip install requests pyotp curl_cffi --break-system-packages
 ```
 
 > `curl_cffi` est nécessaire pour les sites sous Cloudflare ou avec protection anti-bot avancée. Le script fonctionne sans si tu n'en as pas besoin.
+
+Pour les sites avec captcha invisible (hCaptcha, Cloudflare Turnstile...) :
+
+```bash
+pip install playwright --break-system-packages && playwright install firefox
+```
+
+> `playwright` est nécessaire uniquement pour les sites qui bloquent les connexions automatiques via captcha invisible. Le script fonctionne sans si tu n'en as pas besoin.
 
 ---
 
@@ -29,6 +37,7 @@ sudo bash install.sh
 Le script `install.sh` s'occupe de tout :
 - Vérification de Python3
 - Installation de pip et des dépendances (`requests`, `pyotp`, `curl_cffi`)
+- Installation optionnelle de `playwright` et du navigateur Firefox headless
 - Copie de `sites.example.json` vers `sites.json`
 - Installation de la commande courte `autovisit`
 
@@ -38,6 +47,7 @@ Il ne reste plus qu'à éditer `sites.json` avec tes identifiants.
 
 ```bash
 pip install requests pyotp curl_cffi --break-system-packages
+pip install playwright --break-system-packages && playwright install firefox
 cp sites.example.json sites.json
 ```
 
@@ -91,14 +101,19 @@ Toute la configuration se fait dans `sites.json`.
 | `verify_url` | | URL à charger après login pour vérifier la connexion et extraire les stats |
 | `success_url_contains` | | Texte attendu dans l'URL après connexion |
 | `success_keywords` | | Mots-clés attendus dans le HTML après connexion |
-| `success_json_field` | | Champ JSON attendu dans la réponse API (ex: `"token"`) |
+| `success_json_field` | | Champ JSON attendu dans la réponse API (ex: `"success"`) |
 | `alert_keywords` | | Mots-clés déclenchant une alerte MP (substring exact du HTML) |
-| `stats` | | Dict de patterns regex pour extraire les statistiques |
+| `stats` | | Dict de patterns regex pour extraire les statistiques depuis le HTML |
+| `stats_json` | | Dict de chemins de clés pour extraire les statistiques depuis une réponse JSON |
+| `mp_url` | | URL d'une API JSON pour vérifier les MP non lus |
+| `mp_json_field` | | Champ JSON à vérifier dans la réponse `mp_url` (défaut: `total`) |
 | `totp_secret` | | Secret TOTP base32 pour le 2FA |
 | `totp_field` | | Nom du champ TOTP (défaut: `mfa`) |
 | `totp_url` | | URL de la page 2FA dédiée (si étape séparée) |
 | `api_json` | | `true` si le login se fait via API JSON |
 | `use_curl_cffi` | | `true` pour les sites Cloudflare / anti-bot (impersonne Firefox) |
+| `use_playwright` | | `true` pour les sites avec captcha invisible (Firefox headless) |
+| `playwright_submit` | | Sélecteur CSS du bouton de soumission (défaut: `button[type=submit]`) |
 
 ---
 
@@ -131,19 +146,20 @@ Si le site utilise aussi un champ honeypot de type `text` (non hidden), ajoute-l
 
 ## Statistiques
 
-Le champ `stats` accepte un dictionnaire de patterns regex. Chaque pattern est appliqué sur le HTML de la page après connexion (ou de `verify_url` si défini). Les valeurs extraites sont loggées.
+Le champ `stats` accepte un dictionnaire de patterns regex appliqués sur le HTML après connexion. Le champ `stats_json` accepte un dictionnaire de chemins de clés appliqués sur une réponse JSON (via `verify_url` ou `mp_url`).
 
 ```json
 "stats": {
   "upload": "PATTERN_REGEX",
-  "download": "PATTERN_REGEX",
-  "ratio": "PATTERN_REGEX",
-  "bonus": "PATTERN_REGEX",
-  "seeding": "PATTERN_REGEX"
+  "ratio": "PATTERN_REGEX"
+},
+"stats_json": {
+  "upload": "user.uploaded",
+  "ratio": "user.ratio"
 }
 ```
 
-Les patterns utilisent `re.DOTALL | re.IGNORECASE`. Le groupe capturant `(...)` contient la valeur extraite.
+Les patterns `stats` utilisent `re.DOTALL | re.IGNORECASE`. Les clés `stats_json` supportent la notation pointée pour les objets imbriqués (`"user.stats.ratio"`). Les clés contenant `upload`, `download`, `bytes` ou `size` sont automatiquement converties en unités lisibles (Ko/Mo/Go/To).
 
 ---
 
@@ -213,6 +229,31 @@ Les patterns utilisent `re.DOTALL | re.IGNORECASE`. Le groupe capturant `(...)` 
 }
 ```
 
+### Site UNIT3D avec captcha invisible (Playwright)
+
+```json
+{
+  "name": "MonSiteUNIT3D",
+  "url": "https://monsite.com/login",
+  "post_url": "https://monsite.com/login",
+  "username_field": "username",
+  "password_field": "password",
+  "use_playwright": true,
+  "playwright_submit": "button.auth-form__primary-button",
+  "totp_secret": "SECRET_BASE32",
+  "totp_field": "code",
+  "verify_url": "https://monsite.com/",
+  "success_keywords": ["monpseudo"],
+  "stats": {
+    "upload": "ratio-bar__uploaded[^>]*>\\s*<a[^>]*>\\s*<i[^>]+></i>\\s*([^<]+)",
+    "ratio": "ratio-bar__ratio[^>]*>\\s*<a[^>]*>\\s*<i[^>]+></i>\\s*([^<]+)"
+  },
+  "username": "monpseudo",
+  "password": "monmotdepasse",
+  "enabled": true
+}
+```
+
 ### Site ASP.NET
 
 ```json
@@ -251,7 +292,7 @@ Les patterns utilisent `re.DOTALL | re.IGNORECASE`. Le groupe capturant `(...)` 
 }
 ```
 
-### Site API JSON + Cloudflare + MFA
+### Site API JSON avec stats JSON et MP via endpoint dédié
 
 ```json
 {
@@ -259,14 +300,18 @@ Les patterns utilisent `re.DOTALL | re.IGNORECASE`. Le groupe capturant `(...)` 
   "url": "https://monsite.com/login",
   "pre_visit_urls": ["https://monsite.com/api/settings/public"],
   "post_url": "https://monsite.com/api/auth/login",
-  "totp_url": "https://monsite.com/api/auth/mfa/totp",
-  "totp_secret": "SECRET_BASE32",
   "username_field": "username",
   "password_field": "password",
   "api_json": true,
-  "use_curl_cffi": true,
-  "verify_url": "https://monsite.com/",
-  "success_keywords": ["Déconnexion"],
+  "success_json_field": "success",
+  "verify_url": "https://monsite.com/api/auth/me",
+  "stats_json": {
+    "upload": "user.uploaded",
+    "download": "user.downloaded",
+    "ratio": "user.ratio"
+  },
+  "mp_url": "https://monsite.com/api/messages/unread-count",
+  "mp_json_field": "total",
   "username": "monpseudo",
   "password": "monmotdepasse",
   "enabled": true
@@ -346,6 +391,8 @@ Recommandé : 1 fois par jour, à heure fixe.
 
 Le champ `alert_keywords` détecte une chaîne exacte dans le HTML de la page après connexion. La valeur doit être unique et n'apparaître que lorsqu'il y a un message non lu.
 
+Le champ `mp_url` permet d'interroger un endpoint JSON dédié. La valeur du champ `mp_json_field` (défaut: `total`) est comparée à `0` — si supérieure, une alerte est déclenchée.
+
 La notification Pushover reçue aura le titre **"Autovisit - MP"** et le corps **"MP non lu sur NomDuSite"**.
 
 ---
@@ -373,6 +420,6 @@ Affiche un tableau récapitulatif de tous les sites configurés dans `sites.json
 | URL | Domaine |
 | TOTP | Secret TOTP configuré |
 | 2FA | Type de 2FA (inline, page, api_json) |
-| Stats | Patterns stats configurés |
-| MP | alert_keywords configurés |
+| Stats | Patterns stats ou stats_json configurés |
+| MP | alert_keywords ou mp_url configurés |
 | Curl | use_curl_cffi activé |
