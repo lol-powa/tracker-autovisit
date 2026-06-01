@@ -190,6 +190,20 @@ def visit_site_playwright(site):
         with sync_playwright() as p:
             browser = p.firefox.launch(headless=True)
             page = browser.new_page()
+
+            # Interception des reponses API (playwright_intercept)
+            intercepted = {}
+            intercept_urls = site.get("playwright_intercept", [])
+            def _on_response(response):
+                for iurl in intercept_urls:
+                    if response.url == iurl or response.url.startswith(iurl):
+                        try:
+                            intercepted[response.url] = response.json()
+                        except Exception:
+                            pass
+            if intercept_urls:
+                page.on("response", _on_response)
+
             log.info("[" + name + "] Chargement de la page de login (Playwright) : " + site["url"])
             page.goto(site["url"], timeout=timeout)
 
@@ -231,6 +245,43 @@ def visit_site_playwright(site):
 
             cookies = page.context.cookies()
             browser.close()
+
+        # Traitement des donnees interceptees (playwright_intercept)
+        if intercepted:
+            # Stats JSON
+            stats_json = site.get("stats_json", {})
+            stats_url = site.get("playwright_stats_url", "")
+            if stats_json and stats_url:
+                jdata = intercepted.get(stats_url)
+                if jdata:
+                    stats = extract_stats_json(jdata, stats_json)
+                    stats_str = " | ".join(k + ": " + v for k, v in stats.items())
+                    log.info("[" + name + "] Stats -- " + stats_str)
+            # MP via mp_url intercepte
+            mp_url = site.get("mp_url", "")
+            mp_json_field = site.get("mp_json_field", "total")
+            if mp_url:
+                mp_data = intercepted.get(mp_url)
+                if mp_data:
+                    mp_count = mp_data.get(mp_json_field, 0)
+                    if mp_count and int(mp_count) > 0:
+                        log.info("[" + name + "] ALERTE : " + str(mp_count) + " MP non lu(s)")
+                        return True, ("ALERTE", name, "mp_url", True)
+            # Si pas de verify_url, retourner OK directement
+            if not site.get("verify_url") and intercepted:
+                success_keywords = site.get("success_keywords", [])
+                if success_keywords:
+                    msg = "OK [" + name + "] Connexion reussie (Playwright intercept, mot-cle : " + success_keywords[0] + ")"
+                else:
+                    msg = "OK [" + name + "] Connexion reussie (Playwright intercept)"
+                log.info(msg)
+                return True, msg
+
+        # Fallback si intercepted vide et pas de verify_url
+        if not intercepted and not site.get("verify_url") and intercept_urls:
+            msg = "ECHEC [" + name + "] Interception API vide (Cloudflare ?)"
+            log.warning(msg)
+            return False, msg
 
         session = requests.Session()
         session.headers.update({
