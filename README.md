@@ -114,6 +114,8 @@ Toute la configuration se fait dans `sites.json`.
 | `use_curl_cffi` | | `true` pour les sites Cloudflare / anti-bot (impersonne Firefox) |
 | `use_playwright` | | `true` pour les sites avec captcha invisible (Firefox headless) |
 | `playwright_submit` | | Sélecteur CSS du bouton de soumission (défaut: `button[type=submit]`) |
+| `playwright_intercept` | | Liste d'URLs d'API à intercepter pendant la navigation Playwright |
+| `playwright_stats_url` | | URL parmi `playwright_intercept` contenant les données de stats (`stats_json` appliqué dessus) |
 
 ---
 
@@ -197,9 +199,9 @@ Les patterns `stats` utilisent `re.DOTALL | re.IGNORECASE`. Les clés `stats_jso
   "success_keywords": ["Déconnexion"],
   "alert_keywords": ["new_message"],
   "stats": {
-    "upload": "class=\"stat tooltip up\" title=\"([^\"]+)\"",
-    "download": "class=\"stat tooltip dl\" title=\"([^\"]+)\"",
-    "ratio": "class=\"tooltip r\\d+\" title=\"([^\"]+)\""
+    "upload": "class=\"stat tooltip up\"[^>]*>([^<]+)</span>",
+    "download": "class=\"stat tooltip dl\"[^>]*>([^<]+)</span>",
+    "ratio": "class=\"tooltip r\\d+\"[^>]*>([^<]+)</span>"
   },
   "username": "monpseudo",
   "password": "monmotdepasse",
@@ -253,6 +255,37 @@ Les patterns `stats` utilisent `re.DOTALL | re.IGNORECASE`. Les clés `stats_jso
   "enabled": true
 }
 ```
+
+### Site SPA avec interception API (Playwright)
+
+Pour les sites dont les stats et MP sont chargés dynamiquement via des appels API (Vue.js, React, etc.), Playwright peut intercepter les réponses réseau pendant la navigation et en extraire les données directement, sans avoir à parser le HTML rendu.
+
+```json
+{
+  "name": "MonTrackerSPA",
+  "url": "https://monsite.com/login",
+  "username_field": "identifier",
+  "password_field": "password",
+  "use_playwright": true,
+  "playwright_intercept": [
+    "https://monsite.com/api/me",
+    "https://monsite.com/api/me/notifications/unread"
+  ],
+  "playwright_stats_url": "https://monsite.com/api/me",
+  "stats_json": {
+    "upload": "uploaded",
+    "download": "downloaded",
+    "ratio": "ratio"
+  },
+  "mp_url": "https://monsite.com/api/me/notifications/unread",
+  "mp_json_field": "total",
+  "username": "monpseudo",
+  "password": "monmotdepasse",
+  "enabled": true
+}
+```
+
+> `playwright_intercept` liste les URLs à intercepter. `playwright_stats_url` indique laquelle contient les stats (`stats_json` lui est appliqué). `mp_url` + `mp_json_field` fonctionnent de la même façon que pour les sites non-Playwright.
 
 ### Site ASP.NET
 
@@ -359,6 +392,9 @@ autovisit --stats
 # Toutes les notifications (erreurs + MP + succès)
 autovisit --verbose
 
+# Exporter un status.json après le run
+autovisit --json-output
+
 # Un seul site (par nom ou alias)
 autovisit --site MonSite
 autovisit --site s1
@@ -368,6 +404,7 @@ autovisit --site MonSite MonSite2
 
 # Combinaison
 autovisit --site MonSite --verbose
+autovisit --json-output --mp --error
 ```
 
 ---

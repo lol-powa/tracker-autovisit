@@ -55,9 +55,10 @@ def parse_args():
     parser.add_argument("--verbose", action="store_true", help="Toutes les notifications")
     parser.add_argument("--site",    type=str, nargs="+", default=None, help="Visiter uniquement ces sites")
     parser.add_argument("--stats",   action="store_true", help="Afficher uniquement les lignes de stats")
+    parser.add_argument("--json-output", action="store_true", help="Ecrire status.json apres le run")
     args = parser.parse_args()
     # Par defaut : --mp --error si aucun mode specifie
-    if not any([args.silent, args.mp, args.error, args.verbose, args.stats]):
+    if not any([args.silent, args.mp, args.error, args.verbose, args.stats, args.json_output]):
         args.mp = True
         args.error = True
     return args
@@ -794,8 +795,29 @@ def main():
     log.info("=== Demarrage -- " + str(len(sites)) + " site(s) a visiter ===")
     results_ok  = []
     results_err = []
+    # Collecte pour status.json
+    status_sites = []
+    # Handler de capture des logs pour extraire stats/alertes par site
+    captured_logs = []
+    class CaptureHandler(logging.Handler):
+        def emit(self, record):
+            captured_logs.append(record.getMessage())
+    capture_handler = CaptureHandler()
+    log.addHandler(capture_handler)
+
     for site in sites:
+        captured_logs.clear()
+        site_url = site.get("url", "")
+        site_domain = site_url.split("/")[2] if "//" in site_url else site_url
         ok, msg = visit_site_playwright(site) if site.get("use_playwright") else visit_site(site)
+        # Extraire stats et alerte depuis les logs captures
+        site_stats_str = None
+        site_alert = None
+        for line in captured_logs:
+            if "Stats --" in line:
+                site_stats_str = line.split("Stats -- ", 1)[1] if "Stats -- " in line else None
+            if "ALERTE :" in line:
+                site_alert = line.split("ALERTE : ", 1)[1] if "ALERTE : " in line else "MP non lu"
         if ok and isinstance(msg, tuple) and msg[0] == "ALERTE":
             _, site_name, kw, _ = msg
             alerte_msg = "MP non lu sur " + site_name
@@ -803,8 +825,13 @@ def main():
             if args.verbose or args.mp:
                 send_pushover(cfg, "Autovisit - MP", alerte_msg)
             results_ok.append("OK [" + site_name + "] " + alerte_msg)
+            site_alert = "MP non lu"
+            status_sites.append({"name": site["name"], "url": site_domain, "ok": True, "stats": site_stats_str, "alert": site_alert})
         else:
             (results_ok if ok else results_err).append(msg)
+            status_sites.append({"name": site["name"], "url": site_domain, "ok": ok, "stats": site_stats_str, "alert": site_alert})
+
+    log.removeHandler(capture_handler)
     log.info("=== Resume ===")
     for m in results_ok + results_err:
         log.info(m)
@@ -818,6 +845,17 @@ def main():
         log.info("Tous les sites ont ete visites avec succes")
         if args.verbose:
             send_pushover(cfg, "Autovisit", "Tous les sites OK")
+    # Ecriture status.json
+    if args.json_output:
+        import json as _json
+        status = {
+            "updated": datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
+            "sites": status_sites
+        }
+        status_path = BASE_DIR / "status.json"
+        with open(status_path, "w", encoding="utf-8") as f:
+            _json.dump(status, f, ensure_ascii=False, indent=2)
+        log.info("status.json ecrit : " + str(status_path))
 
 if __name__ == "__main__":
     main()
