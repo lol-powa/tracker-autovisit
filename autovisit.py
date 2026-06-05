@@ -211,11 +211,20 @@ def visit_site_playwright(site):
             username_field = site.get("username_field", "username")
             password_field = site.get("password_field", "password")
             submit_selector = site.get("playwright_submit", "button[type=submit]")
+            pwd_selector = site.get("playwright_password_selector")
 
-            page.fill("input[name='" + username_field + "']", site["username"])
-            page.fill("input[name='" + password_field + "']", site["password"])
+            if username_field and site.get("username"):
+                page.fill("input[name='" + username_field + "']", site["username"])
+            if pwd_selector:
+                page.fill(pwd_selector, site["password"])
+            else:
+                page.fill("input[name='" + password_field + "']", site["password"])
             page.click(submit_selector)
-            page.wait_for_load_state("networkidle", timeout=timeout)
+            post_login_wait = site.get("playwright_post_login_wait")
+            if post_login_wait:
+                page.wait_for_timeout(int(post_login_wait) * 1000)
+            else:
+                page.wait_for_load_state("networkidle", timeout=timeout)
 
             log.info("[" + name + "] URL apres login : " + page.url)
 
@@ -243,6 +252,51 @@ def visit_site_playwright(site):
                     pass  # Navigation deja en cours
                 page.wait_for_load_state("networkidle", timeout=timeout)
                 log.info("[" + name + "] URL apres 2FA : " + page.url)
+
+            # Mode fetch verify_url directement via Playwright (Nostradamus / sites a fingerprint strict)
+            if site.get("playwright_fetch_verify"):
+                verify_url = site.get("verify_url")
+                if not verify_url:
+                    browser.close()
+                    msg = "ECHEC [" + name + "] verify_url manquant (playwright_fetch_verify)"
+                    log.error(msg)
+                    return False, msg
+                page.goto(verify_url, timeout=timeout)
+                page.wait_for_timeout(int(site.get("playwright_post_verify_wait", 3)) * 1000)
+                html = page.content()
+                browser.close()
+                body_lower = html.lower()
+
+                # Stats
+                site_stats = site.get("stats", {})
+                if site_stats:
+                    stats = extract_stats(html, site_stats)
+                    stats_str = " | ".join(k + ": " + v for k, v in stats.items())
+                    log.info("[" + name + "] Stats -- " + stats_str)
+
+                # Alertes MP
+                alert_keywords = site.get("alert_keywords", [])
+                for kw in alert_keywords:
+                    if kw.lower() in body_lower:
+                        alert_label = site.get("alert_label", kw)
+                        log.info("[" + name + "] ALERTE : " + alert_label)
+                        return True, ("ALERTE", name, kw, True)
+
+                # Verification succes
+                custom_keywords = site.get("success_keywords", [])
+                if custom_keywords:
+                    matched = next((kw for kw in custom_keywords if kw.lower() in body_lower), None)
+                    if matched:
+                        msg = "OK [" + name + "] Connexion reussie (mot-cle : " + matched + ")"
+                        log.info(msg)
+                        return True, msg
+                    else:
+                        msg = "ECHEC [" + name + "] Mot-cle introuvable apres playwright_fetch_verify"
+                        log.warning(msg)
+                        return False, msg
+                msg = "OK [" + name + "] Connexion reussie (playwright_fetch_verify)"
+                log.info(msg)
+                return True, msg
 
             cookies = page.context.cookies()
             browser.close()

@@ -114,6 +114,10 @@ Toute la configuration se fait dans `sites.json`.
 | `use_curl_cffi` | | `true` pour les sites Cloudflare / anti-bot (impersonne Firefox) |
 | `use_playwright` | | `true` pour les sites avec captcha invisible (Firefox headless) |
 | `playwright_submit` | | Sélecteur CSS du bouton de soumission (défaut: `button[type=submit]`) |
+| `playwright_password_selector` | | Sélecteur CSS du champ password (ex: `#private-key-input`). Si défini, le mode password-only est activé : `username_field` peut rester vide |
+| `playwright_post_login_wait` | | Délai (secondes) à attendre après le clic submit. Utile pour les sites WebSocket / PoW JS qui ne déclenchent jamais `networkidle` |
+| `playwright_fetch_verify` | | `true` pour faire le GET `verify_url` directement via Playwright (au lieu de transférer les cookies vers `requests`). Nécessaire pour les sites à fingerprint navigateur strict |
+| `playwright_post_verify_wait` | | Délai (secondes) à attendre après navigation vers `verify_url` en mode `playwright_fetch_verify` (défaut: `3`) |
 | `playwright_intercept` | | Liste d'URLs d'API à intercepter pendant la navigation Playwright |
 | `playwright_stats_url` | | URL parmi `playwright_intercept` contenant les données de stats (`stats_json` appliqué dessus) |
 
@@ -286,6 +290,35 @@ Pour les sites dont les stats et MP sont chargés dynamiquement via des appels A
 ```
 
 > `playwright_intercept` liste les URLs à intercepter. `playwright_stats_url` indique laquelle contient les stats (`stats_json` lui est appliqué). `mp_url` + `mp_json_field` fonctionnent de la même façon que pour les sites non-Playwright.
+
+### Site Phoenix LiveView / authentification par clé privée (Playwright)
+
+Pour les sites Phoenix LiveView avec login par clé privée (challenge/signature) et PoW JavaScript de type Anubis. Le login se fait via WebSocket, et la session est liée au fingerprint navigateur — il faut rester dans Playwright pour le GET de vérification (`playwright_fetch_verify: true`).
+
+```json
+{
+  "name": "MonSitePhoenix",
+  "url": "https://monsite.com/sign-in",
+  "username_field": "",
+  "password_field": "password",
+  "use_playwright": true,
+  "playwright_password_selector": "#private-key-input",
+  "playwright_post_login_wait": 20,
+  "playwright_fetch_verify": true,
+  "playwright_post_verify_wait": 5,
+  "verify_url": "https://monsite.com/activity",
+  "success_keywords": ["monpseudo"],
+  "stats": {
+    "upload": "Upload total</div>\\s*<div[^>]*>([^<]+)</div>",
+    "download": "Download total</div>\\s*<div[^>]*>([^<]+)</div>"
+  },
+  "username": "",
+  "password": "MA_CLE_PRIVEE",
+  "enabled": true
+}
+```
+
+> `playwright_password_selector` active le mode password-only et cible un champ par sélecteur CSS plutôt que par `name`. `playwright_post_login_wait` est nécessaire car les WebSockets Phoenix LiveView ne déclenchent jamais `networkidle`. `playwright_fetch_verify` fait le GET de vérification depuis le même navigateur Playwright pour préserver le fingerprint requis par l'anti-bot.
 
 ### Site ASP.NET
 
