@@ -213,6 +213,13 @@ def visit_site_playwright(site):
             submit_selector = site.get("playwright_submit", "button[type=submit]")
             pwd_selector = site.get("playwright_password_selector")
 
+            # Attendre que le champ password soit pret (utile pour les hooks JS / LiveView)
+            if pwd_selector:
+                try:
+                    page.wait_for_selector(pwd_selector, timeout=15000)
+                    page.wait_for_timeout(2000)
+                except Exception:
+                    pass
             if username_field and site.get("username"):
                 page.fill("input[name='" + username_field + "']", site["username"])
             if pwd_selector:
@@ -220,8 +227,21 @@ def visit_site_playwright(site):
             else:
                 page.fill("input[name='" + password_field + "']", site["password"])
             page.click(submit_selector)
+            login_url = page.url
+            wait_url_change = site.get("playwright_wait_url_change")
             post_login_wait = site.get("playwright_post_login_wait")
-            if post_login_wait:
+            if wait_url_change:
+                # Attendre que l'URL change apres le submit
+                try:
+                    page.wait_for_function(
+                        "url => window.location.href !== url",
+                        arg=login_url,
+                        timeout=int(wait_url_change) * 1000
+                    )
+                except Exception:
+                    pass
+                page.wait_for_timeout(int(post_login_wait or 3) * 1000)
+            elif post_login_wait:
                 page.wait_for_timeout(int(post_login_wait) * 1000)
             else:
                 page.wait_for_load_state("networkidle", timeout=timeout)
