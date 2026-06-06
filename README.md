@@ -361,6 +361,11 @@ Le fichier `cookies/monsite.json` doit contenir un tableau d'objets cookies au f
 > - Le cookie `cf_clearance` (Cloudflare) est lié à l'**IP** ET au **User-Agent**. Si tu récupères les cookies depuis ton PC, la seedbox qui exécute le script doit utiliser la même IP de sortie (ou un tunnel SSH/SOCKS). Le `user_agent` doit correspondre exactement à celui de ton navigateur.
 > - Protège le fichier : `chmod 600 cookies/monsite.json`
 
+Mode hybride (Cloudflare uniquement) :
+Si seul cf_clearance est dans le fichier cookies, et que username/password/post_url sont renseignés dans la config, le script fera le login classique derrière le cookie Cloudflare.
+Plus fiable que de stocker le cookie de session qui peut être courte durée.
+
+
 ### Site ASP.NET
 
 ```json

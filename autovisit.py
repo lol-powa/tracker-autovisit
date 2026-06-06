@@ -469,6 +469,36 @@ def visit_site_session(site):
 
     log.info("[" + name + "] " + str(len(cookies_data)) + " cookie(s) charge(s) depuis " + cookies_file)
 
+    # Mode hybride : si post_url + username/password definis, faire le login derriere les cookies
+    post_url = site.get("post_url")
+    if post_url and site.get("username") and site.get("password"):
+        login_url = site.get("url", post_url)
+        try:
+            r_login = session.get(login_url, timeout=timeout)
+            if r_login.status_code != 200:
+                msg = "ECHEC [" + name + "] GET login HTTP " + str(r_login.status_code)
+                log.error(msg)
+                return False, msg
+            payload = {
+                site["username_field"]: site["username"],
+                site["password_field"]: site["password"],
+            }
+            # CSRF si configure
+            csrf_field = site.get("csrf_field")
+            csrf_token = extract_csrf(r_login.text, csrf_field)
+            if csrf_token:
+                field_key = csrf_field if csrf_field else "_token"
+                payload[field_key] = csrf_token
+                log.info("[" + name + "] Token CSRF detecte et inclus (" + field_key + ")")
+            payload.update(site.get("extra_fields", {}))
+            time.sleep(random.uniform(0.5, 1.5))
+            r_post = session.post(post_url, data=payload, timeout=timeout, allow_redirects=True)
+            log.info("[" + name + "] Login effectue (HTTP " + str(r_post.status_code) + ")")
+        except Exception as e:
+            msg = "ECHEC [" + name + "] erreur login hybride : " + str(e)
+            log.error(msg)
+            return False, msg
+
     verify_url = site.get("verify_url")
     if not verify_url:
         msg = "ECHEC [" + name + "] verify_url manquant (mode session)"
