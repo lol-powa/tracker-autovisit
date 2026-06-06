@@ -2,7 +2,7 @@
 
 Script Python pour visiter automatiquement des sites privés et éviter les désactivations de compte pour inactivité. Permet également de recevoir des alertes en cas de message privé reçu et de collecter des statistiques (ratio, upload, download, bonus...).
 
-Supporte les connexions classiques (form POST), Laravel/UNIT3D, ASP.NET, XenForo, les API JSON, le TOTP (2FA en ligne ou page dédiée), et les sites protégés par Cloudflare ou captcha invisible (via Playwright). Notifications via Pushover.
+Supporte les connexions classiques (form POST), Laravel/UNIT3D, ASP.NET, XenForo, les API JSON, le TOTP (2FA en ligne ou page dédiée), les sites protégés par Cloudflare ou captcha invisible (via Playwright), et les sites dont le login est totalement bloqué (via cookies de session pré-existants). Notifications via Pushover.
 
 ---
 
@@ -116,10 +116,13 @@ Toute la configuration se fait dans `sites.json`.
 | `playwright_submit` | | Sélecteur CSS du bouton de soumission (défaut: `button[type=submit]`) |
 | `playwright_password_selector` | | Sélecteur CSS du champ password (ex: `#private-key-input`). Si défini, le mode password-only est activé : `username_field` peut rester vide |
 | `playwright_post_login_wait` | | Délai (secondes) à attendre après le clic submit. Utile pour les sites WebSocket / PoW JS qui ne déclenchent jamais `networkidle` |
+| `playwright_wait_url_change` | | Délai max (secondes) à attendre que l'URL change après le submit. À combiner avec `playwright_post_login_wait` pour les sites lents au redirect (Phoenix LiveView par exemple) |
 | `playwright_fetch_verify` | | `true` pour faire le GET `verify_url` directement via Playwright (au lieu de transférer les cookies vers `requests`). Nécessaire pour les sites à fingerprint navigateur strict |
 | `playwright_post_verify_wait` | | Délai (secondes) à attendre après navigation vers `verify_url` en mode `playwright_fetch_verify` (défaut: `3`) |
 | `playwright_intercept` | | Liste d'URLs d'API à intercepter pendant la navigation Playwright |
 | `playwright_stats_url` | | URL parmi `playwright_intercept` contenant les données de stats (`stats_json` appliqué dessus) |
+| `session_cookies_file` | | Chemin vers un fichier JSON contenant des cookies de session pré-existants. Si défini, le login est totalement skippé |
+| `user_agent` | | User-Agent à utiliser. **Obligatoire** quand `session_cookies_file` est utilisé (les cookies type `cf_clearance` sont liés au User-Agent) |
 
 ---
 
@@ -303,7 +306,8 @@ Pour les sites Phoenix LiveView avec login par clé privée (challenge/signature
   "password_field": "password",
   "use_playwright": true,
   "playwright_password_selector": "#private-key-input",
-  "playwright_post_login_wait": 20,
+  "playwright_wait_url_change": 30,
+  "playwright_post_login_wait": 5,
   "playwright_fetch_verify": true,
   "playwright_post_verify_wait": 5,
   "verify_url": "https://monsite.com/activity",
@@ -318,7 +322,44 @@ Pour les sites Phoenix LiveView avec login par clé privée (challenge/signature
 }
 ```
 
-> `playwright_password_selector` active le mode password-only et cible un champ par sélecteur CSS plutôt que par `name`. `playwright_post_login_wait` est nécessaire car les WebSockets Phoenix LiveView ne déclenchent jamais `networkidle`. `playwright_fetch_verify` fait le GET de vérification depuis le même navigateur Playwright pour préserver le fingerprint requis par l'anti-bot.
+> `playwright_password_selector` active le mode password-only et cible un champ par sélecteur CSS plutôt que par `name`. `playwright_wait_url_change` attend que l'URL change après le submit (plus fiable qu'un délai fixe pour les WebSockets Phoenix LiveView). `playwright_fetch_verify` fait le GET de vérification depuis le même navigateur Playwright pour préserver le fingerprint requis par l'anti-bot.
+
+### Site avec login bloqué (cookies de session)
+
+Pour les sites dont le login est totalement bloqué (Cloudflare `cf-mitigated`, hCaptcha, CAPTCHA visuel, etc.), il est possible de skipper le login et de réutiliser les cookies d'une session ouverte manuellement dans un navigateur.
+
+```json
+{
+  "name": "MonSiteBloque",
+  "aliases": ["bloque"],
+  "session_cookies_file": "/chemin/vers/cookies/monsite.json",
+  "user_agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/149.0.0.0 Safari/537.36",
+  "verify_url": "https://monsite.com/",
+  "success_keywords": ["Déconnexion"],
+  "stats": {
+    "upload": "Up:\\s*<span class=\"stat\">([^<]+)</span>"
+  },
+  "username": "",
+  "password": "",
+  "enabled": true
+}
+```
+
+Le fichier `cookies/monsite.json` doit contenir un tableau d'objets cookies au format Cookie-Editor :
+
+```json
+[
+  {"name": "PHPSESSID", "value": "...", "domain": "monsite.com", "path": "/"},
+  {"name": "cf_clearance", "value": "...", "domain": ".monsite.com", "path": "/"}
+]
+```
+
+> **Récupération des cookies** : connecte-toi manuellement au site dans un navigateur, puis ouvre les DevTools (F12) → Application → Cookies. Copie les cookies pertinents (au minimum le cookie de session, plus `cf_clearance` si présent).
+>
+> **Limitations importantes** :
+> - Les cookies expirent. Selon le site, ça tient de quelques jours à plusieurs mois. Si tu vois `cookies expires ?` dans les logs, reconnecte-toi manuellement et regénère le fichier.
+> - Le cookie `cf_clearance` (Cloudflare) est lié à l'**IP** ET au **User-Agent**. Si tu récupères les cookies depuis ton PC, la seedbox qui exécute le script doit utiliser la même IP de sortie (ou un tunnel SSH/SOCKS). Le `user_agent` doit correspondre exactement à celui de ton navigateur.
+> - Protège le fichier : `chmod 600 cookies/monsite.json`
 
 ### Site ASP.NET
 
@@ -471,6 +512,7 @@ La notification Pushover reçue aura le titre **"Autovisit - MP"** et le corps *
 
 - `sites.json` contient tes mots de passe et secrets TOTP en clair — protège-le : `chmod 600 sites.json`
 - Ne partage jamais ton `sites.json`
+- Les fichiers cookies de session (`session_cookies_file`) doivent être protégés : `chmod 600 cookies/*.json`
 - `SITES.md` (configs personnelles) est dans le `.gitignore` — ne le commite pas
 
 ---

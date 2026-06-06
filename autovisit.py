@@ -416,6 +416,106 @@ def visit_site_playwright(site):
         log.error(msg)
         return False, msg
 
+def visit_site_session(site):
+    """Visite un site en utilisant des cookies de session pre-existants (skip login)."""
+    name = site["name"]
+    timeout = site.get("timeout", 20)
+    cookies_file = site.get("session_cookies_file")
+
+    if not cookies_file:
+        msg = "ECHEC [" + name + "] session_cookies_file manquant"
+        log.error(msg)
+        return False, msg
+
+    user_agent = site.get("user_agent")
+    if not user_agent and "User-Agent" not in site.get("extra_headers", {}):
+        msg = "ECHEC [" + name + "] user_agent requis en mode session (les cookies cf_clearance y sont lies)"
+        log.error(msg)
+        return False, msg
+
+    cookies_path = Path(cookies_file)
+    if not cookies_path.exists():
+        msg = "ECHEC [" + name + "] fichier cookies introuvable : " + cookies_file
+        log.error(msg)
+        return False, msg
+
+    try:
+        with open(cookies_path, encoding="utf-8") as f:
+            cookies_data = json.load(f)
+    except Exception as e:
+        msg = "ECHEC [" + name + "] erreur lecture cookies : " + str(e)
+        log.error(msg)
+        return False, msg
+
+    session = requests.Session()
+    session.headers.update({
+        "Accept": "text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8",
+        "Accept-Language": "fr-FR,fr;q=0.9,en;q=0.8",
+    })
+    if user_agent:
+        session.headers["User-Agent"] = user_agent
+    extra_headers = site.get("extra_headers", {})
+    if extra_headers:
+        session.headers.update(extra_headers)
+
+    # Chargement des cookies (format Cookie-Editor : liste d objets)
+    for c in cookies_data:
+        session.cookies.set(
+            c["name"],
+            c["value"],
+            domain=c.get("domain", "").lstrip("."),
+            path=c.get("path", "/"),
+        )
+
+    log.info("[" + name + "] " + str(len(cookies_data)) + " cookie(s) charge(s) depuis " + cookies_file)
+
+    verify_url = site.get("verify_url")
+    if not verify_url:
+        msg = "ECHEC [" + name + "] verify_url manquant (mode session)"
+        log.error(msg)
+        return False, msg
+
+    try:
+        rv = session.get(verify_url, timeout=timeout)
+    except Exception as e:
+        msg = "ECHEC [" + name + "] erreur GET verify_url : " + str(e)
+        log.error(msg)
+        return False, msg
+
+    body_lower = rv.text.lower()
+
+    # Stats
+    site_stats = site.get("stats", {})
+    if site_stats:
+        stats = extract_stats(rv.text, site_stats)
+        stats_str = " | ".join(k + ": " + v for k, v in stats.items())
+        log.info("[" + name + "] Stats -- " + stats_str)
+
+    # Alertes MP
+    alert_keywords = site.get("alert_keywords", [])
+    for kw in alert_keywords:
+        if kw.lower() in body_lower:
+            alert_label = site.get("alert_label", kw)
+            log.info("[" + name + "] ALERTE : " + alert_label)
+            return True, ("ALERTE", name, kw, True)
+
+    # Verification succes
+    custom_keywords = site.get("success_keywords", [])
+    if custom_keywords:
+        matched = next((kw for kw in custom_keywords if kw.lower() in body_lower), None)
+        if matched:
+            msg = "OK [" + name + "] Connexion reussie via session (mot-cle : " + matched + ")"
+            log.info(msg)
+            return True, msg
+        else:
+            msg = "ECHEC [" + name + "] Mot-cle introuvable -- cookies expires ? URL : " + rv.url
+            log.warning(msg)
+            return False, msg
+
+    msg = "OK [" + name + "] Connexion reussie via session"
+    log.info(msg)
+    return True, msg
+
 def visit_site(site):
     name = site["name"]
     timeout = site.get("timeout", 20)
@@ -883,7 +983,12 @@ def main():
         captured_logs.clear()
         site_url = site.get("url", "")
         site_domain = site_url.split("/")[2] if "//" in site_url else site_url
-        ok, msg = visit_site_playwright(site) if site.get("use_playwright") else visit_site(site)
+        if site.get("session_cookies_file"):
+            ok, msg = visit_site_session(site)
+        elif site.get("use_playwright"):
+            ok, msg = visit_site_playwright(site)
+        else:
+            ok, msg = visit_site(site)
         # Extraire stats et alerte depuis les logs captures
         site_stats_str = None
         site_alert = None
