@@ -29,8 +29,10 @@ except ImportError:
     PLAYWRIGHT_AVAILABLE = False
 
 BASE_DIR = Path(__file__).resolve().parent
-CONFIG   = BASE_DIR / "sites.json"
-LOG_FILE = BASE_DIR / "logs" / f"visit_{datetime.now().strftime('%Y-%m')}.log"
+DATA_DIR = BASE_DIR / "data"
+DATA_DIR.mkdir(exist_ok=True)
+CONFIG   = DATA_DIR / "sites.json"
+LOG_FILE = DATA_DIR / "logs" / f"visit_{datetime.now().strftime('%Y-%m')}.log"
 
 LOG_FILE.parent.mkdir(exist_ok=True)
 
@@ -1078,7 +1080,7 @@ def main():
             "updated": datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
             "sites": status_sites
         }
-        status_path = BASE_DIR / "status.json"
+        status_path = DATA_DIR / "status.json"
         with open(status_path, "w", encoding="utf-8") as f:
             _json.dump(status, f, ensure_ascii=False, indent=2)
         log.info("status.json ecrit : " + str(status_path))

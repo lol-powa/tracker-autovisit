@@ -31,13 +31,14 @@ else
 fi
 # 5. Création du fichier sites.json si absent
 SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
-if [ ! -f "$SCRIPT_DIR/sites.json" ]; then
-    echo "Création de sites.json depuis l'exemple..."
-    cp "$SCRIPT_DIR/sites.example.json" "$SCRIPT_DIR/sites.json"
-    chmod 600 "$SCRIPT_DIR/sites.json"
-    echo "✅ sites.json créé — pense à le remplir avec tes identifiants"
+mkdir -p "$SCRIPT_DIR/data" "$SCRIPT_DIR/data/logs" "$SCRIPT_DIR/data/cookies"
+if [ ! -f "$SCRIPT_DIR/data/sites.json" ]; then
+    echo "Création de data/sites.json depuis l'exemple..."
+    cp "$SCRIPT_DIR/sites.example.json" "$SCRIPT_DIR/data/sites.json"
+    chmod 600 "$SCRIPT_DIR/data/sites.json"
+    echo "✅ data/sites.json créé — pense à le remplir avec tes identifiants"
 else
-    echo "✅ sites.json déjà présent"
+    echo "✅ data/sites.json déjà présent"
 fi
 # 6. Permissions
 chmod +x "$SCRIPT_DIR/autovisit.py"
@@ -59,5 +60,5 @@ echo "  2. Teste avec : autovisit --verbose"
 echo ""
 echo "Pour cron quotidien :"
 echo "  crontab -e"
-echo "  0 8 * * * python3 $SCRIPT_DIR/autovisit.py --mp --error >> $SCRIPT_DIR/logs/cron.log 2>&1"
+echo "  0 8 * * * python3 $SCRIPT_DIR/autovisit.py --mp --error >> $SCRIPT_DIR/data/logs/cron.log 2>&1"
 echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
