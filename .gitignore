@@ -1,25 +1,45 @@
 # Credentials — ne jamais publier
 sites.json
 
-# Logs
-logs/
-
-# Fichiers temporaires Python
-__pycache__/
-*.pyc
-*.pyo
-
-# Environnements virtuels
-venv/
-.venv/
-
-# macOS
-.DS_Store
-
-# Fichiers de test temporaires
-/tmp/test_*.py
-
 # Configurations personnelles de sites (ne pas commiter)
 SITES.md
 cookies/
 cookies/*.json
+
+# Logs
+logs/
+
+# Python
+__pycache__/
+*.py[cod]
+*.egg-info/
+.venv/
+venv/
+env/
+
+# Environnement / secrets
+.env
+.env.*
+*.local
+
+# IDE / éditeurs
+.vscode/
+.idea/
+*.swp
+*~
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Logs et bases locales
+*.log
+*.sqlite
+*.sqlite3
+
+# Fichiers de test temporaires
+/tmp/test_*.py
+
+# Données runtime
+data/
+downloads/
