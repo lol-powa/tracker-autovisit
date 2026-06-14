@@ -460,12 +460,16 @@ def visit_site_session(site):
 
     # Chargement des cookies (format Cookie-Editor : liste d objets)
     for c in cookies_data:
-        session.cookies.set(
-            c["name"],
-            c["value"],
-            domain=c.get("domain", "").lstrip("."),
-            path=c.get("path", "/"),
-        )
+        # Les cookies prefixe __Host- ne doivent pas avoir de domaine explicite
+        if c["name"].startswith("__Host-"):
+            session.cookies.set(c["name"], c["value"], path="/")
+        else:
+            session.cookies.set(
+                c["name"],
+                c["value"],
+                domain=c.get("domain", "").lstrip("."),
+                path=c.get("path", "/"),
+            )
 
     log.info("[" + name + "] " + str(len(cookies_data)) + " cookie(s) charge(s) depuis " + cookies_file)
 
