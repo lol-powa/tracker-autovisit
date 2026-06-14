@@ -31,7 +31,7 @@ pip install playwright --break-system-packages && playwright install firefox
 ```bash
 git clone https://github.com/Gusdezup/Autovisit.git
 cd autovisit
-sudo bash install.sh
+bash install.sh
 ```
 
 Le script `install.sh` s'occupe de tout :
@@ -54,7 +54,7 @@ cp sites.example.json sites.json
 ### Commande courte (si install.sh non utilisé)
 
 ```bash
-printf '#!/bin/sh\nexec sudo python3 /chemin/vers/autovisit.py "$@"\n' > /usr/local/bin/autovisit
+printf '#!/bin/sh\nexec python3 /chemin/vers/autovisit.py "$@"\n' > /usr/local/bin/autovisit
 chmod 755 /usr/local/bin/autovisit
 ```
 
@@ -488,7 +488,7 @@ autovisit --json-output --mp --error
 
 ---
 
-## Planification (cron / DSM Task Scheduler)
+## Planification Crontab
 
 ```bash
 python3 /chemin/vers/autovisit.py --mp --error

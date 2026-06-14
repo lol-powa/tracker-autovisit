@@ -5,6 +5,7 @@ sites.json
 SITES.md
 cookies/
 cookies/*.json
+status.json
 
 # Logs
 logs/

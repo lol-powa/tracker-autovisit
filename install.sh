@@ -1,18 +1,18 @@
 #!/bin/bash
-# install.sh — Installation sur NAS Synology (DSM 7+) & Debian 13
-# Lance avec : sudo bash install.sh
+# install.sh — Installation sur Debian stable
+# Lance avec : bash install.sh (en root)
 set -e
 echo "=== Installation autovisit ==="
 # 1. Vérification Python3
 if ! command -v python3 &>/dev/null; then
-    echo "❌ Python3 introuvable. Installe-le via le Centre de paquets Synology ou apt."
+    echo "❌ Python3 introuvable. Installe-le avec : apt install python3 python3-pip"
     exit 1
 fi
 echo "✅ Python3 : $(python3 --version)"
 # 2. Installation pip pour root si absent
 if ! python3 -m pip --version &>/dev/null; then
     echo "Installation de pip..."
-    curl -sS https://bootstrap.pypa.io/pip/3.8/get-pip.py | python3
+    apt install -y python3-pip
 fi
 echo "✅ pip : $(python3 -m pip --version)"
 # 3. Installation des dépendances
@@ -43,7 +43,7 @@ fi
 chmod +x "$SCRIPT_DIR/autovisit.py"
 # 7. Commande courte (optionnel)
 if [ ! -f /usr/local/bin/autovisit ]; then
-    printf '#!/bin/sh\nexec sudo python3 %s/autovisit.py "$@"\n' "$SCRIPT_DIR" > /usr/local/bin/autovisit
+    printf '#!/bin/sh\nexec python3 %s/autovisit.py "$@"\n' "$SCRIPT_DIR" > /usr/local/bin/autovisit
     chmod 755 /usr/local/bin/autovisit
     echo "✅ Commande 'autovisit' installée"
 else
@@ -57,13 +57,7 @@ echo "PROCHAINES ÉTAPES :"
 echo "  1. Edite sites.json avec tes identifiants"
 echo "  2. Teste avec : autovisit --verbose"
 echo ""
-echo "Pour le planificateur DSM (quotidien) :"
-echo "  Panneau de configuration → Planificateur de tâches"
-echo "  → Créer → Tâche planifiée → Script défini par l'utilisateur"
-echo "  Commande : python3 $SCRIPT_DIR/autovisit.py --mp --error"
-echo "  Planification : Quotidienne, à l'heure souhaitée"
-echo ""
-echo "Pour cron Linux (Debian) :"
+echo "Pour cron quotidien :"
 echo "  crontab -e"
 echo "  0 8 * * * python3 $SCRIPT_DIR/autovisit.py --mp --error >> $SCRIPT_DIR/logs/cron.log 2>&1"
 echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
