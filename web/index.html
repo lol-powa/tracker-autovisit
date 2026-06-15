@@ -146,6 +146,7 @@
       <th>Download</th>
       <th>Ratio</th>
       <th>Bonus / Points</th>
+      <th>En Seed</th>
       <th>Autres</th>
       <th style="width:60px"></th>
     </tr>
@@ -159,7 +160,8 @@
 const COL_UPLOAD  = ['upload'];
 const COL_DOWN    = ['download'];
 const COL_RATIO   = ['ratio'];
-const COL_BONUS   = ['bonus', 'points', 'partage', 'theias', 'credits', 'bonus_upload', 'gift_lvl'];
+const COL_BONUS   = ['bonus', 'points', 'theias', 'credits', 'bonus_upload', 'gift_lvl', 'chocos', 'gold'];
+const COL_SEED    = ['seed', 'seeds', 'seeding'];
 
 function parseStats(str) {
   if (!str) return {};
@@ -204,7 +206,7 @@ fetch('status.json?_=' + Date.now())
 
       if (!site.ok) {
         tr.innerHTML = nameCell +
-          `<td colspan="5" class="left"><span class="ko-label">Échec</span></td><td></td>`;
+          `<td colspan="6" class="left"><span class="ko-label">Échec</span></td><td></td>`;
         tbody.appendChild(tr);
         return;
       }
@@ -212,16 +214,21 @@ fetch('status.json?_=' + Date.now())
       const stats = parseStats(site.stats);
 
       // Upload
-      let upload = null, download = null, ratio = null, bonus = null;
+      let upload = null, download = null, ratio = null, bonus = null, seed = null;
       const others = [];
-
       Object.entries(stats).forEach(([k, v]) => {
         if (matchCol(k, COL_UPLOAD) && !upload)       upload = v;
+        else if (k === 'download_total')              { /* fusionné après */ }
         else if (matchCol(k, COL_DOWN) && !download)  download = v;
         else if (matchCol(k, COL_RATIO) && !ratio)    ratio = v;
         else if (matchCol(k, COL_BONUS) && !bonus)    bonus = v;
+        else if (matchCol(k, COL_SEED) && !seed)      seed = v;
         else if (v && v !== 'N/A')                    others.push(k + ': ' + v);
       });
+
+      if (stats.download_total && download) {
+        download = download.trim() + ' (Réel ' + stats.download_total.trim() + ')';
+      }
 
       const othersStr = others.length ? others.join(' | ') : null;
 
@@ -231,7 +238,7 @@ fetch('status.json?_=' + Date.now())
 
       tr.innerHTML = nameCell +
         cell(upload) + cell(download) + cell(ratio) + cell(bonus) +
-        cell(othersStr) + statusCell;
+        cell(seed) + cell(othersStr) + statusCell;
 
       tbody.appendChild(tr);
     });

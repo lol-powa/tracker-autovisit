@@ -154,9 +154,28 @@ def fmt_bytes(val):
 
 def extract_stats(html, patterns):
     stats = {}
-    for key, pattern in patterns.items():
+    factors = {"B": 1, "KB": 1024, "MB": 1024**2, "GB": 1024**3, "TB": 1024**4}
+    for key, spec in patterns.items():
+        # Support format polymorphe : str (simple) ou dict {"pattern": ..., "unit": ...}
+        if isinstance(spec, dict):
+            pattern = spec["pattern"]
+            unit = spec.get("unit")
+        else:
+            pattern = spec
+            unit = None
         match = re.search(pattern, html, re.IGNORECASE | re.DOTALL)
-        stats[key] = match.group(1).strip() if match else "N/A"
+        if not match:
+            stats[key] = "N/A"
+            continue
+        value = match.group(1).strip()
+        if unit:
+            try:
+                num = float(value.replace(",", "").replace(" ", "").replace("\xa0", ""))
+                stats[key] = fmt_bytes(num * factors[unit.upper()])
+            except (ValueError, KeyError):
+                stats[key] = value
+        else:
+            stats[key] = value
     return stats
 
 def extract_stats_json(data, fields):
@@ -788,10 +807,13 @@ def visit_site(site):
                                 import requests as _req
                                 _s = _req.Session()
                                 _s.cookies.update(dict(session.cookies))
-                                _s.headers.update({
+                                _headers = {
                                     "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64; rv:124.0) Gecko/20100101 Firefox/124.0",
                                     "Accept": "application/json",
-                                })
+                                }
+                                if jwt_token:
+                                    _headers["Authorization"] = "Bearer " + jwt_token
+                                _s.headers.update(_headers)
                                 rv = _s.get(verify_url, timeout=timeout)
                             else:
                                 rv = session.get(verify_url, headers=auth_headers, timeout=timeout)
