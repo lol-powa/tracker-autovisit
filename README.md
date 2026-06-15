@@ -503,6 +503,41 @@ Recommandé : 1 fois par jour, à heure fixe.
 
 ---
 
+## Interface web
+
+La page `web/index.html` affiche les stats de tous les sites en lisant `data/status.json` (généré par `autovisit --json-output`).
+
+### Déploiement
+
+```bash
+mkdir -p /var/www/autovisit
+cp web/index.html /var/www/autovisit/
+```
+
+`status.json` n'est **pas copié** dans le webroot pour des raisons de sécurité : il reste dans `data/` et est exposé via un alias Nginx avec restriction d'accès.
+
+### Configuration Nginx
+
+Le bloc à ajouter dans le `server { listen 443 ssl; ... }` :
+
+```nginx
+location = /status.json {
+    alias /opt/tracker-autovisit/data/status.json;
+    satisfy any;
+    allow x.x.x.0/24;
+    deny all;
+    add_header Cache-Control "no-store, no-cache, must-revalidate";
+}
+```
+
+`satisfy any` combiné à `allow`/`deny` permet l'accès direct depuis le LAN (x.x.x.0/24) ou via `auth_basic` pour le reste. Adapter le CIDR à votre réseau.
+
+### Permissions
+
+`status.json` doit être lisible par `www-data` (par défaut, `umask 022` produit `-rw-r--r--`, ce qui convient). Le dossier `data/` doit être traversable (`o+x`).
+
+---
+
 ## Alertes MP
 
 Le champ `alert_keywords` détecte une chaîne exacte dans le HTML de la page après connexion. La valeur doit être unique et n'apparaître que lorsqu'il y a un message non lu.
