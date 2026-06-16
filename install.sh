@@ -42,7 +42,18 @@ else
 fi
 # 6. Permissions
 chmod +x "$SCRIPT_DIR/autovisit.py"
-# 7. Commande courte (optionnel)
+# 7. Déploiement web (optionnel)
+read -r -p "Déployer la page web vers /var/www/autovisit/ ? [o/N] " answer
+if [[ "$answer" =~ ^[oOyY]$ ]]; then
+    mkdir -p /var/www/autovisit/icones
+    cp "$SCRIPT_DIR/web/index.html" /var/www/autovisit/
+    cp "$SCRIPT_DIR/web/icones/"* /var/www/autovisit/icones/
+    chown -R www-data:www-data /var/www/autovisit
+    echo "✅ Page web déployée dans /var/www/autovisit/"
+else
+    echo "⏭  Déploiement web ignoré"
+fi
+# 8. Commande courte (optionnel)
 if [ ! -f /usr/local/bin/autovisit ]; then
     printf '#!/bin/sh\nexec python3 %s/autovisit.py "$@"\n' "$SCRIPT_DIR" > /usr/local/bin/autovisit
     chmod 755 /usr/local/bin/autovisit

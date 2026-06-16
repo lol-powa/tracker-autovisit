@@ -512,6 +512,8 @@ La page `web/index.html` affiche les stats de tous les sites en lisant `data/sta
 ```bash
 mkdir -p /var/www/autovisit
 cp web/index.html /var/www/autovisit/
+cp web/icones/* /var/www/autovisit/icones/
+chown -R www-data:www-data /var/www/autovisit
 ```
 
 `status.json` n'est **pas copié** dans le webroot pour des raisons de sécurité : il reste dans `data/` et est exposé via un alias Nginx avec restriction d'accès.
