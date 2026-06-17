@@ -23,6 +23,7 @@ pip install playwright --break-system-packages && playwright install firefox
 ```
 
 > `playwright` est nécessaire uniquement pour les sites qui bloquent les connexions automatiques via captcha invisible. Le script fonctionne sans si tu n'en as pas besoin.
+Pour les sites protégés par un challenge Cloudflare que Playwright ne franchit pas, il faut installer [FlareSolverr](https://github.com/FlareSolverr/FlareSolverr) (nativement ou via Docker) et le rendre accessible en permanence. L'installation via Docker est conseillée pour sa simplicité.
 
 ---
 
@@ -118,6 +119,8 @@ Chaque site a son propre fichier dans `data/sites.d/<slug>.json` (slug = nom du 
 | `success_keywords` | | Mots-clés attendus dans le HTML après connexion |
 | `success_json_field` | | Champ JSON attendu dans la réponse API (ex: `"success"`) |
 | `alert_keywords` | | Mots-clés déclenchant une alerte MP (substring exact du HTML) |
+| `alert_stat` | | Nom d'une clé de `stats` à surveiller : si sa valeur numérique est > 0, déclenche une alerte MP. Le compteur est exclu de l'affichage des stats. |
+| `alert_label` | | Libellé de l'alerte MP dans les logs et notifications (défaut : le mot-clé ou la clé surveillée) |
 | `stats` | | Dict de patterns regex pour extraire les statistiques depuis le HTML |
 | `stats_json` | | Dict de chemins de clés pour extraire les statistiques depuis une réponse JSON |
 | `mp_url` | | URL d'une API JSON pour vérifier les MP non lus |
@@ -137,7 +140,9 @@ Chaque site a son propre fichier dans `data/sites.d/<slug>.json` (slug = nom du 
 | `playwright_intercept` | | Liste d'URLs d'API à intercepter pendant la navigation Playwright |
 | `playwright_stats_url` | | URL parmi `playwright_intercept` contenant les données de stats (`stats_json` appliqué dessus) |
 | `session_cookies_file` | | Chemin vers un fichier JSON contenant des cookies de session pré-existants. Si défini, le login est totalement skippé |
-| `user_agent` | | User-Agent à utiliser. **Obligatoire** quand `session_cookies_file` est utilisé (les cookies type `cf_clearance` sont liés au User-Agent) |
+| `user_agent` | | User-Agent à utiliser. **Obligatoire** avec `session_cookies_file` (sauf si `cf_solver` est défini, auquel cas FlareSolverr impose le sien) |
+| `cf_solver` | | URL d'une instance FlareSolverr (ex. `http://127.0.0.1:8191/v1`). Résout le challenge Cloudflare à la volée et rend `session_cookies_file` et `user_agent` optionnels |
+| `cf_solver_timeout` | | Délai max (secondes) accordé à FlareSolverr pour résoudre le challenge (défaut : 60) |
 
 ---
 
@@ -380,6 +385,27 @@ Mode hybride (Cloudflare uniquement) :
 Si seul cf_clearance est dans le fichier cookies, et que username/password/post_url sont renseignés dans la config, le script fera le login classique derrière le cookie Cloudflare.
 Plus fiable que de stocker le cookie de session qui peut être courte durée.
 
+### Contournement Cloudflare automatisé (FlareSolverr)
+
+Plutôt que de coller un `cf_clearance` à la main (qui expire vite, parfois en moins de 24 h), la clé `cf_solver` délègue la résolution du challenge à une instance FlareSolverr :
+​
+```json
+{
+    "name": "MonSite",
+    "cf_solver": "http://127.0.0.1:8191/v1",
+    "verify_url": "https://monsite.com/index.php",
+    "url": "https://monsite.com/login.php",
+    "post_url": "https://monsite.com/login.php",
+    "username_field": "username",
+    "password_field": "password",
+    "username": "...",
+    "password": "...",
+    "success_keywords": ["logout.php"]
+}
+​```
+
+À chaque visite, le script envoie l'URL cible à FlareSolverr, qui renvoie le cookie `cf_clearance` valide **et** l'User-Agent utilisé pour l'obtenir. Le script réutilise alors exactement cet User-Agent pour la session (le `cf_clearance` étant lié au couple IP + User-Agent) ; l'`user_agent` du fichier de config devient inutile. Le login classique se déroule ensuite derrière le cookie Cloudflare, comme en mode hybride.
+Comme le cookie est régénéré à chaque run, il n'y a plus de cookie à coller ni à renouveler. La contrainte d'IP de sortie commune (voir ci-dessus) s'applique : FlareSolverr doit sortir sur Internet par la même IP publique que le script.
 
 ### Site ASP.NET
 
@@ -559,6 +585,9 @@ location = /status.json {
 
 Le champ `alert_keywords` détecte une chaîne exacte dans le HTML de la page après connexion. La valeur doit être unique et n'apparaître que lorsqu'il y a un message non lu.
 
+Le champ `alert_stat` surveille une statistique déjà extraite (une clé de `stats`) : si sa valeur numérique dépasse 0, une alerte est déclenchée. Pratique quand le site expose u
+n compteur de messages non lus dont la valeur est aussi captée comme stat. Le compteur n'est pas affiché dans la ligne de stats.
+
 Le champ `mp_url` permet d'interroger un endpoint JSON dédié. La valeur du champ `mp_json_field` (défaut: `total`) est comparée à `0` — si supérieure, une alerte est déclenchée.
 
 La notification Pushover reçue aura le titre **"Autovisit - MP"** et le corps **"MP non lu sur NomDuSite"**.
@@ -590,5 +619,5 @@ Affiche un tableau récapitulatif de tous les sites configurés dans `data/sites
 | TOTP | Secret TOTP configuré |
 | 2FA | Type de 2FA (inline, page, api_json) |
 | Stats | Patterns stats ou stats_json configurés |
-| MP | alert_keywords ou mp_url configurés |
+| MP | alert_keywords, alert_stat ou mp_url configurés |
 | Curl | use_curl_cffi activé |
