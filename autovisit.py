@@ -386,7 +386,7 @@ def visit_site_playwright(site):
                 site_stats = site.get("stats", {})
                 if site_stats:
                     stats = extract_stats(html, site_stats)
-                    stats_str = " | ".join(k + ": " + v for k, v in stats.items())
+                    stats_str = format_stats(stats, site)
                     log.info("[" + name + "] Stats -- " + stats_str)
 
                 # Alertes MP
@@ -425,7 +425,7 @@ def visit_site_playwright(site):
                 jdata = intercepted.get(stats_url)
                 if jdata:
                     stats = extract_stats_json(jdata, stats_json)
-                    stats_str = " | ".join(k + ": " + v for k, v in stats.items())
+                    stats_str = format_stats(stats, site)
                     log.info("[" + name + "] Stats -- " + stats_str)
             # MP via mp_url intercepte
             mp_url = site.get("mp_url", "")
@@ -475,7 +475,7 @@ def visit_site_playwright(site):
         site_stats = site.get("stats", {})
         if site_stats:
             stats = extract_stats(rv.text, site_stats)
-            stats_str = " | ".join(k + ": " + v for k, v in stats.items())
+            stats_str = format_stats(stats, site)
             log.info("[" + name + "] Stats -- " + stats_str)
 
         alert_keywords = site.get("alert_keywords", [])
@@ -547,6 +547,28 @@ def solve_cloudflare(solver_url, target_url, timeout=60):
         log.error("FlareSolverr : cookies ou userAgent manquant")
         return None, None
     return cookies, ua
+
+def check_alert_stat(stats, site, name):
+    """Si la stat surveillee (alert_stat) est numerique et > 0, retourne le label
+    d'alerte, sinon None. Gere cle absente, valeur '0', valeur formatee."""
+    key = site.get("alert_stat")
+    if not key or not stats:
+        return None
+    raw = stats.get(key)
+    if raw is None:
+        return None
+    digits = re.sub(r"[^\d]", "", str(raw))
+    if digits and int(digits) > 0:
+        label = site.get("alert_label", key)
+        log.info("[" + name + "] ALERTE : " + label)
+        return label
+    return None
+
+def format_stats(stats, site):
+    """Construit la ligne de stats affichable, en excluant la stat surveillee
+    par alert_stat (compteur de MP : declencheur d'alerte, pas une vraie stat)."""
+    skip = site.get("alert_stat")
+    return " | ".join(k + ": " + v for k, v in stats.items() if k != skip)
 
 def visit_site_session(site):
     """Visite un site en utilisant des cookies de session pre-existants (skip login)."""
@@ -673,7 +695,7 @@ def visit_site_session(site):
     site_stats = site.get("stats", {})
     if site_stats:
         stats = extract_stats(rv.text, site_stats)
-        stats_str = " | ".join(k + ": " + v for k, v in stats.items())
+        stats_str = format_stats(stats, site)
         log.info("[" + name + "] Stats -- " + stats_str)
 
     # Alertes MP
@@ -839,7 +861,7 @@ def visit_site(site):
                                 site_stats = site.get("stats", {})
                                 if site_stats:
                                     stats = extract_stats(rv.text, site_stats)
-                                    stats_str = " | ".join(k + ": " + v for k, v in stats.items())
+                                    stats_str = format_stats(stats, site)
                                     log.info("[" + name + "] Stats -- " + stats_str)
                                 matched = next((kw for kw in custom_keywords if kw.lower() in rv.text.lower()), None)
                                 if matched:
@@ -891,7 +913,7 @@ def visit_site(site):
                                 try:
                                     jdata = rv.json()
                                     stats = extract_stats_json(jdata, stats_json)
-                                    stats_str = " | ".join(k + ": " + v for k, v in stats.items())
+                                    stats_str = format_stats(stats, site)
                                     log.info("[" + name + "] Stats -- " + stats_str)
                                 except Exception as e:
                                     log.warning("[" + name + "] Erreur parsing stats JSON : " + str(e))
@@ -919,7 +941,7 @@ def visit_site(site):
                             site_stats = site.get("stats", {})
                             if site_stats:
                                 stats = extract_stats(rv.text, site_stats)
-                                stats_str = " | ".join(k + ": " + v for k, v in stats.items())
+                                stats_str = format_stats(stats, site)
                                 log.info("[" + name + "] Stats -- " + stats_str)
                         msg = "OK [" + name + "] Connexion reussie (champ JSON : " + success_json_field + ")"
                         log.info(msg)
@@ -983,7 +1005,7 @@ def visit_site(site):
                     site_stats = site.get("stats", {})
                     if site_stats:
                         stats = extract_stats(r3.text, site_stats)
-                        stats_str = " | ".join(k + ": " + v for k, v in stats.items())
+                        stats_str = format_stats(stats, site)
                         log.info("[" + name + "] Stats -- " + stats_str)
                     msg = "OK [" + name + "] Connexion reussie apres 2FA (mot-cle : " + matched + ")"
                     log.info(msg)
@@ -1015,12 +1037,16 @@ def visit_site(site):
 
         # Stats
         site_stats = site.get("stats", {})
+        stats = {}
         if site_stats:
             stats = extract_stats(r2.text, site_stats)
-            stats_str = " | ".join(k + ": " + v for k, v in stats.items())
+            stats_str = format_stats(stats, site)
             log.info("[" + name + "] Stats -- " + stats_str)
-
-        # Alertes MP
+        # Alertes MP via stat numerique surveillee (alert_stat)
+        stat_label = check_alert_stat(stats, site, name)
+        if stat_label:
+            return True, ("ALERTE", name, stat_label, True)
+        # Alertes MP via mot-cle dans le HTML (alert_keywords)
         alert_keywords = site.get("alert_keywords", [])
         if alert_keywords:
             for kw in alert_keywords:
