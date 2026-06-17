@@ -273,6 +273,22 @@ def write_snapshot(site_name, status, error, alert, fields):
     except Exception as e:
         log.warning("Ecriture history.db echouee pour " + site_name + " : " + str(e))
 
+def last_ok_date(site_name):
+    """Retourne la date (ISO) du dernier snapshot status='ok' pour ce site, ou None."""
+    import sqlite3
+    try:
+        conn = sqlite3.connect(HISTORY_DB)
+        cur = conn.execute(
+            "SELECT captured_at FROM stat_snapshots "
+            "WHERE site = ? AND status = 'ok' ORDER BY id DESC LIMIT 1",
+            (site_name,),
+        )
+        row = cur.fetchone()
+        conn.close()
+        return row[0] if row else None
+    except Exception:
+        return None
+
 def visit_site_playwright(site):
     name = site["name"]
     timeout = site.get("timeout", 20) * 1000
@@ -1258,6 +1274,9 @@ def main():
                     "alert": None,
                     "disabled": True
                 })
+        # Injecter la date de derniere connexion reussie (depuis l'historique)
+        for entry in status_sites:
+            entry["last_ok"] = last_ok_date(entry["name"])
         status = {
             "updated": datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
             "sites": status_sites
