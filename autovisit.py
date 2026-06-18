@@ -1004,25 +1004,34 @@ def visit_site(site):
                 log.info("[" + name + "] Champs hidden 2FA extraits : " + ", ".join(hidden2.keys()))
             time.sleep(random.uniform(0.5, 1.0))
             r3 = session.post(r2.url, data=totp_payload, timeout=timeout, allow_redirects=True)
+            # GET verify_url post-2FA pour recuperer la page contenant la top-bar (stats)
+            verify_url = site.get("verify_url")
+            if verify_url:
+                r3 = session.get(verify_url, timeout=timeout)
             body_lower = r3.text.lower()
 
             custom_keywords = site.get("success_keywords", [])
             if custom_keywords:
                 matched = next((kw for kw in custom_keywords if kw.lower() in body_lower), None)
                 if matched:
-                    # Alertes MP avant de retourner OK
+                    # Stats (extraites avant les alertes pour etre historisees meme en cas de MP)
+                    site_stats = site.get("stats", {})
+                    stats = {}
+                    if site_stats:
+                        stats = extract_stats(r3.text, site_stats)
+                        stats_str = format_stats(stats, site)
+                        log.info("[" + name + "] Stats -- " + stats_str)
+                    # Alertes MP via stat numerique surveillee (alert_stat)
+                    stat_label = check_alert_stat(stats, site, name)
+                    if stat_label:
+                        return True, ("ALERTE", name, stat_label, True)
+                    # Alertes MP via mot-cle dans le HTML (alert_keywords)
                     alert_keywords = site.get("alert_keywords", [])
                     for kw in alert_keywords:
                         if kw.lower() in body_lower:
                             alert_label = site.get("alert_label", kw)
                             log.info("[" + name + "] ALERTE : " + alert_label)
                             return True, ("ALERTE", name, kw, True)
-                    # Stats
-                    site_stats = site.get("stats", {})
-                    if site_stats:
-                        stats = extract_stats(r3.text, site_stats)
-                        stats_str = format_stats(stats, site)
-                        log.info("[" + name + "] Stats -- " + stats_str)
                     msg = "OK [" + name + "] Connexion reussie apres 2FA (mot-cle : " + matched + ")"
                     log.info(msg)
                     return True, msg
