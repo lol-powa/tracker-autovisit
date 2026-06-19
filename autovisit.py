@@ -213,6 +213,22 @@ def extract_stats_json(data, fields):
             stats[key] = "N/A"
     return stats
 
+def fetch_extra_stats(session, url, fields, name, timeout):
+    """Recupere une URL JSON avec la session courante et extrait
+    les champs definis dans fields via extract_stats_json.
+    En cas d'echec (HTTP, timeout, JSON malforme), log un warning
+    et retourne un dict vide pour ne pas casser la collecte principale."""
+    try:
+        r = session.get(url, timeout=timeout)
+        if r.status_code != 200:
+            log.warning("[" + name + "] extra_url HTTP " + str(r.status_code))
+            return {}
+        data = r.json()
+    except Exception as e:
+        log.warning("[" + name + "] extra_url echec : " + str(e))
+        return {}
+    return extract_stats_json(data, fields)
+
 def init_history_db():
     """Cree la table stat_snapshots si elle n existe pas."""
     import sqlite3
@@ -1065,8 +1081,15 @@ def visit_site(site):
         stats = {}
         if site_stats:
             stats = extract_stats(r2.text, site_stats)
-            stats_str = format_stats(stats, site)
-            log.info("[" + name + "] Stats -- " + stats_str)
+        # Stats supplementaires via endpoint JSON (extra_url + extra_stats)
+        extra_url = site.get("extra_url")
+        extra_fields = site.get("extra_stats")
+        if extra_url and extra_fields:
+            extra = fetch_extra_stats(session, extra_url, extra_fields, name, timeout)
+            if extra:
+                stats.update(extra)
+        if stats:
+            log.info("[" + name + "] Stats -- " + format_stats(stats, site))
         # Alertes MP via stat numerique surveillee (alert_stat)
         stat_label = check_alert_stat(stats, site, name)
         if stat_label:
