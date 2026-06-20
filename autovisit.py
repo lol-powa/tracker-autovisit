@@ -324,7 +324,7 @@ def visit_site_playwright(site):
     if not PLAYWRIGHT_AVAILABLE:
         msg = "ECHEC [" + name + "] playwright non installe"
         log.error(msg)
-        return False, msg
+        return False, msg, None
 
     try:
         with sync_playwright() as p:
@@ -394,12 +394,12 @@ def visit_site_playwright(site):
                     browser.close()
                     msg = "ECHEC [" + name + "] 2FA detecte mais totp_secret absent"
                     log.error(msg)
-                    return False, msg
+                    return False, msg, None
                 if not PYOTP_AVAILABLE:
                     browser.close()
                     msg = "ECHEC [" + name + "] pyotp non installe -- 2FA impossible"
                     log.error(msg)
-                    return False, msg
+                    return False, msg, None
                 import pyotp as _pyotp
                 totp_code = _pyotp.TOTP(totp_secret).now()
                 totp_field = site.get("totp_field", "code")
@@ -419,7 +419,7 @@ def visit_site_playwright(site):
                     browser.close()
                     msg = "ECHEC [" + name + "] verify_url manquant (playwright_fetch_verify)"
                     log.error(msg)
-                    return False, msg
+                    return False, msg, None
                 page.goto(verify_url, timeout=timeout)
                 page.wait_for_timeout(int(site.get("playwright_post_verify_wait", 3)) * 1000)
                 html = page.content()
@@ -439,7 +439,7 @@ def visit_site_playwright(site):
                     if kw.lower() in body_lower:
                         alert_label = site.get("alert_label", kw)
                         log.info("[" + name + "] ALERTE : " + alert_label)
-                        return True, ("ALERTE", name, kw, True)
+                        return True, "ALERTE [" + name + "] " + str(kw), {"alert": True, "alert_kw": str(kw)}
 
                 # Verification succes
                 custom_keywords = site.get("success_keywords", [])
@@ -448,14 +448,14 @@ def visit_site_playwright(site):
                     if matched:
                         msg = "OK [" + name + "] Connexion reussie (mot-cle : " + matched + ")"
                         log.info(msg)
-                        return True, msg
+                        return True, msg, None
                     else:
                         msg = "ECHEC [" + name + "] Mot-cle introuvable apres playwright_fetch_verify"
                         log.warning(msg)
-                        return False, msg
+                        return False, msg, None
                 msg = "OK [" + name + "] Connexion reussie (playwright_fetch_verify)"
                 log.info(msg)
-                return True, msg
+                return True, msg, None
 
             cookies = page.context.cookies()
             browser.close()
@@ -480,7 +480,7 @@ def visit_site_playwright(site):
                     mp_count = get_json_path(mp_data, mp_json_field, 0)
                     if mp_count and int(mp_count) > 0:
                         log.info("[" + name + "] ALERTE : " + str(mp_count) + " MP non lu(s)")
-                        return True, ("ALERTE", name, "mp_url", True)
+                        return True, "ALERTE [" + name + "] " + str("mp_url"), {"alert": True, "alert_kw": str("mp_url")}
             # Si pas de verify_url, retourner OK directement
             if not site.get("verify_url") and intercepted:
                 success_keywords = site.get("success_keywords", [])
@@ -489,13 +489,13 @@ def visit_site_playwright(site):
                 else:
                     msg = "OK [" + name + "] Connexion reussie (Playwright intercept)"
                 log.info(msg)
-                return True, msg
+                return True, msg, None
 
         # Fallback si intercepted vide et pas de verify_url
         if not intercepted and not site.get("verify_url") and intercept_urls:
             msg = "ECHEC [" + name + "] Interception API vide (Cloudflare ?)"
             log.warning(msg)
-            return False, msg
+            return False, msg, None
 
         session = requests.Session()
         session.headers.update({
@@ -512,7 +512,7 @@ def visit_site_playwright(site):
         else:
             msg = "ECHEC [" + name + "] verify_url manquant (Playwright)"
             log.error(msg)
-            return False, msg
+            return False, msg, None
 
         body_lower = rv.text.lower()
 
@@ -527,7 +527,7 @@ def visit_site_playwright(site):
             if kw.lower() in body_lower:
                 alert_label = site.get("alert_label", kw)
                 log.info("[" + name + "] ALERTE : " + alert_label)
-                return True, ("ALERTE", name, kw, True)
+                return True, "ALERTE [" + name + "] " + str(kw), {"alert": True, "alert_kw": str(kw)}
 
         custom_keywords = site.get("success_keywords", [])
         if custom_keywords:
@@ -535,25 +535,25 @@ def visit_site_playwright(site):
             if matched:
                 msg = "OK [" + name + "] Connexion reussie (mot-cle : " + matched + ")"
                 log.info(msg)
-                return True, msg
+                return True, msg, None
             else:
                 msg = "ECHEC [" + name + "] Mot-cle introuvable apres Playwright -- URL : " + rv.url
                 log.warning(msg)
-                return False, msg
+                return False, msg, None
 
         if any(w in body_lower for w in ["logout", "deconnexion", "mon compte", "my account", "bienvenue", "welcome", "sign out"]):
             msg = "OK [" + name + "] Connexion reussie (Playwright)"
             log.info(msg)
-            return True, msg
+            return True, msg, None
 
         msg = "ECHEC [" + name + "] Connexion douteuse apres Playwright -- URL : " + rv.url
         log.warning(msg)
-        return False, msg
+        return False, msg, None
 
     except Exception as e:
         msg = "ECHEC [" + name + "] Erreur Playwright : " + str(e)
         log.error(msg)
-        return False, msg
+        return False, msg, None
 
 def solve_cloudflare(solver_url, target_url, timeout=60):
     """Resout un challenge Cloudflare via FlareSolverr.
@@ -627,11 +627,11 @@ def visit_site_session(site):
     if not cookies_file and not cf_solver:
         msg = "ECHEC [" + name + "] session_cookies_file ou cf_solver requis"
         log.error(msg)
-        return False, msg
+        return False, msg, None
     if not cf_solver and not user_agent and "User-Agent" not in site.get("extra_headers", {}):
         msg = "ECHEC [" + name + "] user_agent requis en mode session (les cookies cf_clearance y sont lies)"
         log.error(msg)
-        return False, msg
+        return False, msg, None
 
     cookies_data = []
     if cookies_file:
@@ -639,14 +639,14 @@ def visit_site_session(site):
         if not cookies_path.exists():
             msg = "ECHEC [" + name + "] fichier cookies introuvable : " + cookies_file
             log.error(msg)
-            return False, msg
+            return False, msg, None
         try:
             with open(cookies_path, encoding="utf-8") as f:
                 cookies_data = json.load(f)
         except Exception as e:
             msg = "ECHEC [" + name + "] erreur lecture cookies : " + str(e)
             log.error(msg)
-            return False, msg
+            return False, msg, None
 
     session = requests.Session()
     session.headers.update({
@@ -667,7 +667,7 @@ def visit_site_session(site):
         if not cf_cookies:
             msg = "ECHEC [" + name + "] FlareSolverr n'a pas resolu le challenge"
             log.error(msg)
-            return False, msg
+            return False, msg, None
         # L'UA renvoye par FlareSolverr fait foi (le cf_clearance y est lie)
         session.headers["User-Agent"] = cf_ua
         log.info("[" + name + "] FlareSolverr OK -- UA force : " + cf_ua)
@@ -699,7 +699,7 @@ def visit_site_session(site):
             if r_login.status_code != 200:
                 msg = "ECHEC [" + name + "] GET login HTTP " + str(r_login.status_code)
                 log.error(msg)
-                return False, msg
+                return False, msg, None
             payload = {
                 site["username_field"]: site["username"],
                 site["password_field"]: site["password"],
@@ -718,20 +718,20 @@ def visit_site_session(site):
         except Exception as e:
             msg = "ECHEC [" + name + "] erreur login hybride : " + str(e)
             log.error(msg)
-            return False, msg
+            return False, msg, None
 
     verify_url = site.get("verify_url")
     if not verify_url:
         msg = "ECHEC [" + name + "] verify_url manquant (mode session)"
         log.error(msg)
-        return False, msg
+        return False, msg, None
 
     try:
         rv = session.get(verify_url, timeout=timeout)
     except Exception as e:
         msg = "ECHEC [" + name + "] erreur GET verify_url : " + str(e)
         log.error(msg)
-        return False, msg
+        return False, msg, None
 
     body_lower = rv.text.lower()
 
@@ -753,7 +753,7 @@ def visit_site_session(site):
     # Alertes MP via stat numerique surveillee (alert_stat)
     stat_label = check_alert_stat(stats, site, name)
     if stat_label:
-        return True, ("ALERTE", name, stat_label, True)
+        return True, "ALERTE [" + name + "] " + str(stat_label), {"alert": True, "alert_kw": str(stat_label)}
 
     # Alertes MP via mot-cle dans le HTML (alert_keywords)
     alert_keywords = site.get("alert_keywords", [])
@@ -761,7 +761,7 @@ def visit_site_session(site):
         if kw.lower() in body_lower:
             alert_label = site.get("alert_label", kw)
             log.info("[" + name + "] ALERTE : " + alert_label)
-            return True, ("ALERTE", name, kw, True)
+            return True, "ALERTE [" + name + "] " + str(kw), {"alert": True, "alert_kw": str(kw)}
 
     # Verification succes
     custom_keywords = site.get("success_keywords", [])
@@ -770,15 +770,15 @@ def visit_site_session(site):
         if matched:
             msg = "OK [" + name + "] Connexion reussie via session (mot-cle : " + matched + ")"
             log.info(msg)
-            return True, msg
+            return True, msg, None
         else:
             msg = "ECHEC [" + name + "] Mot-cle introuvable -- cookies expires ? URL : " + rv.url
             log.warning(msg)
-            return False, msg
+            return False, msg, None
 
     msg = "OK [" + name + "] Connexion reussie via session"
     log.info(msg)
-    return True, msg
+    return True, msg, None
 
 def visit_site(site):
     name = site["name"]
@@ -789,7 +789,7 @@ def visit_site(site):
         if not CURL_CFFI_AVAILABLE:
             msg = "ECHEC [" + name + "] curl_cffi non installe"
             log.error(msg)
-            return False, msg
+            return False, msg, None
         session = curl_requests.Session(impersonate="firefox")
     else:
         session = requests.Session()
@@ -817,7 +817,7 @@ def visit_site(site):
         if r.status_code != 200:
             msg = "ECHEC [" + name + "] Page de login inaccessible (HTTP " + str(r.status_code) + ")"
             log.error(msg)
-            return False, msg
+            return False, msg, None
 
         time.sleep(random.uniform(1.5, 3.0))
 
@@ -847,7 +847,7 @@ def visit_site(site):
         if totp_secret and not totp_url:
             if not PYOTP_AVAILABLE:
                 log.error("[" + name + "] pyotp non installe -- 2FA impossible")
-                return False, "ECHEC [" + name + "] pyotp manquant"
+                return False, "ECHEC [" + name + "] pyotp manquant", None
             totp_code = pyotp.TOTP(totp_secret).now()
             totp_field = site.get("totp_field", "mfa")
             payload[totp_field] = totp_code
@@ -888,10 +888,10 @@ def visit_site(site):
                     if not totp_url or not totp_secret:
                         msg = "ECHEC [" + name + "] MFA requis mais totp_url/totp_secret absent dans la config"
                         log.error(msg)
-                        return False, msg
+                        return False, msg, None
                     if not PYOTP_AVAILABLE:
                         log.error("[" + name + "] pyotp non installe -- 2FA impossible")
-                        return False, "ECHEC [" + name + "] pyotp manquant"
+                        return False, "ECHEC [" + name + "] pyotp manquant", None
                     totp_code = pyotp.TOTP(totp_secret).now()
                     log.info("[" + name + "] MFA requis (API JSON), envoi du code TOTP : " + totp_code)
                     time.sleep(random.uniform(0.5, 1.0))
@@ -915,7 +915,7 @@ def visit_site(site):
                                         if kw.lower() in rv.text.lower():
                                             alert_label = site.get("alert_label", kw)
                                             log.info("[" + name + "] ALERTE : " + alert_label)
-                                            return True, ("ALERTE", name, kw, True)
+                                            return True, "ALERTE [" + name + "] " + str(kw), {"alert": True, "alert_kw": str(kw)}
                                 # Stats
                                 site_stats = site.get("stats", {})
                                 stats = {}
@@ -934,19 +934,19 @@ def visit_site(site):
                                 if matched:
                                     msg = "OK [" + name + "] Connexion reussie apres MFA JSON (mot-cle : " + matched + ")"
                                     log.info(msg)
-                                    return True, msg
+                                    return True, msg, None
                                 else:
                                     msg = "ECHEC [" + name + "] MFA JSON ok mais mot-cle introuvable sur " + verify_url
                                     log.warning(msg)
-                                    return False, msg
+                                    return False, msg, None
                             msg = "OK [" + name + "] Connexion reussie apres MFA JSON"
                             log.info(msg)
-                            return True, msg
+                            return True, msg, None
                     except:
                         pass
                     msg = "ECHEC [" + name + "] Echec apres MFA JSON -- HTTP " + str(r3.status_code)
                     log.warning(msg)
-                    return False, msg
+                    return False, msg, None
 
                 success_json_field = site.get("success_json_field")
                 if success_json_field:
@@ -1007,7 +1007,7 @@ def visit_site(site):
                         # Alertes MP via stat numerique surveillee (alert_stat)
                         stat_label = check_alert_stat(stats, site, name)
                         if stat_label:
-                            return True, ("ALERTE", name, stat_label, True)
+                            return True, "ALERTE [" + name + "] " + str(stat_label), {"alert": True, "alert_kw": str(stat_label)}
                         # Alertes MP via mp_url
                         mp_url = site.get("mp_url")
                         mp_json_field = site.get("mp_json_field", "total")
@@ -1018,7 +1018,7 @@ def visit_site(site):
                                 mp_count = get_json_path(mp_data, mp_json_field, 0)
                                 if mp_count and int(mp_count) > 0:
                                     log.info("[" + name + "] ALERTE : " + str(mp_count) + " MP non lu(s)")
-                                    return True, ("ALERTE", name, "mp_url", True)
+                                    return True, "ALERTE [" + name + "] " + str("mp_url"), {"alert": True, "alert_kw": str("mp_url")}
                             except Exception as e:
                                 log.warning("[" + name + "] Erreur mp_url : " + str(e))
                         # Alertes MP via mot-cle dans le HTML (alert_keywords)
@@ -1027,33 +1027,33 @@ def visit_site(site):
                             if kw.lower() in html_source.lower():
                                 alert_label = site.get("alert_label", kw)
                                 log.info("[" + name + "] ALERTE : " + alert_label)
-                                return True, ("ALERTE", name, kw, True)
+                                return True, "ALERTE [" + name + "] " + str(kw), {"alert": True, "alert_kw": str(kw)}
                         msg = "OK [" + name + "] Connexion reussie (champ JSON : " + success_json_field + ")"
                         log.info(msg)
-                        return True, msg
+                        return True, msg, None
                     else:
                         msg = "ECHEC [" + name + "] Champ JSON manquant : " + success_json_field
                         log.warning(msg)
-                        return False, msg
+                        return False, msg, None
 
                 if data.get("token") or data.get("access_token") or data.get("user") or data.get("success"):
                     msg = "OK [" + name + "] Connexion reussie (API JSON)"
                     log.info(msg)
-                    return True, msg
+                    return True, msg, None
 
                 msg = "ECHEC [" + name + "] Reponse API JSON inattendue : " + r2.text[:200]
                 log.warning(msg)
-                return False, msg
+                return False, msg, None
 
             except Exception as e:
                 msg = "ECHEC [" + name + "] Erreur parsing JSON : " + str(e)
                 log.error(msg)
-                return False, msg
+                return False, msg, None
 
         if totp_secret and totp_url and totp_url.split("?")[0] in r2.url:
             if not PYOTP_AVAILABLE:
                 log.error("[" + name + "] pyotp non installe -- 2FA impossible")
-                return False, "ECHEC [" + name + "] pyotp manquant"
+                return False, "ECHEC [" + name + "] pyotp manquant", None
             log.info("[" + name + "] Page 2FA detectee, envoi du code TOTP")
             # GET de la page 2FA pour recuperer le bon token CSRF
             r2fa = session.get(r2.url, timeout=timeout)
@@ -1100,34 +1100,34 @@ def visit_site(site):
                     # Alertes MP via stat numerique surveillee (alert_stat)
                     stat_label = check_alert_stat(stats, site, name)
                     if stat_label:
-                        return True, ("ALERTE", name, stat_label, True)
+                        return True, "ALERTE [" + name + "] " + str(stat_label), {"alert": True, "alert_kw": str(stat_label)}
                     # Alertes MP via mot-cle dans le HTML (alert_keywords)
                     alert_keywords = site.get("alert_keywords", [])
                     for kw in alert_keywords:
                         if kw.lower() in body_lower:
                             alert_label = site.get("alert_label", kw)
                             log.info("[" + name + "] ALERTE : " + alert_label)
-                            return True, ("ALERTE", name, kw, True)
+                            return True, "ALERTE [" + name + "] " + str(kw), {"alert": True, "alert_kw": str(kw)}
                     msg = "OK [" + name + "] Connexion reussie apres 2FA (mot-cle : " + matched + ")"
                     log.info(msg)
-                    return True, msg
+                    return True, msg, None
                 else:
                     msg = "ECHEC [" + name + "] Mot-cle introuvable apres 2FA -- URL : " + r3.url
                     log.warning(msg)
-                    return False, msg
+                    return False, msg, None
 
             if any(w in body_lower for w in ["logout", "deconnexion", "mon compte", "my account", "bienvenue", "welcome", "sign out"]):
                 msg = "OK [" + name + "] Connexion reussie apres 2FA"
                 log.info(msg)
-                return True, msg
+                return True, msg, None
             success_kw = site.get("success_url_contains", "")
             if success_kw and success_kw.lower() in r3.url.lower():
                 msg = "OK [" + name + "] Connexion reussie apres 2FA -> " + r3.url
                 log.info(msg)
-                return True, msg
+                return True, msg, None
             msg = "ECHEC [" + name + "] Echec apres 2FA -- URL : " + r3.url
             log.warning(msg)
-            return False, msg
+            return False, msg, None
 
         # GET de vérification optionnel (ex: login AJAX qui retourne body vide)
         verify_url = site.get("verify_url")
@@ -1153,7 +1153,7 @@ def visit_site(site):
         # Alertes MP via stat numerique surveillee (alert_stat)
         stat_label = check_alert_stat(stats, site, name)
         if stat_label:
-            return True, ("ALERTE", name, stat_label, True)
+            return True, "ALERTE [" + name + "] " + str(stat_label), {"alert": True, "alert_kw": str(stat_label)}
         # Alertes MP via mot-cle dans le HTML (alert_keywords)
         alert_keywords = site.get("alert_keywords", [])
         if alert_keywords:
@@ -1161,7 +1161,7 @@ def visit_site(site):
                 if kw.lower() in body_lower:
                     alert_label = site.get("alert_label", kw)
                     log.info("[" + name + "] ALERTE : " + alert_label)
-                    return True, ("ALERTE", name, kw, True)
+                    return True, "ALERTE [" + name + "] " + str(kw), {"alert": True, "alert_kw": str(kw)}
 
         custom_keywords = site.get("success_keywords", [])
         if custom_keywords:
@@ -1169,40 +1169,40 @@ def visit_site(site):
             if matched:
                 msg = "OK [" + name + "] Connexion reussie (mot-cle : " + matched + ")"
                 log.info(msg)
-                return True, msg
+                return True, msg, None
             else:
                 msg = "ECHEC [" + name + "] Mot-cle introuvable dans la page -- URL : " + r2.url
                 log.warning(msg)
-                return False, msg
+                return False, msg, None
 
         success_kw = site.get("success_url_contains", "")
         if success_kw and success_kw.lower() in r2.url.lower():
             msg = "OK [" + name + "] Connexion reussie -> " + r2.url
             log.info(msg)
-            return True, msg
+            return True, msg, None
 
         if any(w in body_lower for w in ["logout", "deconnexion", "mon compte", "my account", "bienvenue", "welcome", "sign out"]):
             msg = "OK [" + name + "] Connexion reussie (detectee dans la page)"
             log.info(msg)
-            return True, msg
+            return True, msg, None
 
         if any(w in body_lower for w in ["invalid", "incorrect", "wrong", "error", "invalide"]):
             msg = "ECHEC [" + name + "] Identifiants refuses"
             log.warning(msg)
-            return False, msg
+            return False, msg, None
 
         msg = "ECHEC [" + name + "] Connexion douteuse -- URL : " + r2.url + " HTTP " + str(r2.status_code)
         log.warning(msg)
-        return False, msg
+        return False, msg, None
 
     except requests.exceptions.Timeout:
         msg = "ECHEC [" + name + "] Timeout"
         log.error(msg)
-        return False, msg
+        return False, msg, None
     except Exception as e:
         msg = "ECHEC [" + name + "] Erreur : " + str(e)
         log.error(msg)
-        return False, msg
+        return False, msg, None
 
 def list_sites(cfg):
     sites = cfg.get("sites", [])
@@ -1307,11 +1307,11 @@ def main():
         site_url = site.get("url") or site.get("verify_url", "")
         site_domain = site_url.split("/")[2] if "//" in site_url else site_url
         if site.get("session_cookies_file") or site.get("cf_solver"):
-            ok, msg = visit_site_session(site)
+            ok, msg, extras = visit_site_session(site)
         elif site.get("use_playwright"):
-            ok, msg = visit_site_playwright(site)
+            ok, msg, extras = visit_site_playwright(site)
         else:
-            ok, msg = visit_site(site)
+            ok, msg, extras = visit_site(site)
         # Extraire stats et alerte depuis les logs captures
         site_stats_str = None
         site_alert = None
@@ -1320,21 +1320,21 @@ def main():
                 site_stats_str = line.split("Stats -- ", 1)[1] if "Stats -- " in line else None
             if "ALERTE :" in line:
                 site_alert = line.split("ALERTE : ", 1)[1] if "ALERTE : " in line else "MP non lu"
-        if ok and isinstance(msg, tuple) and msg[0] == "ALERTE":
-            _, site_name, kw, _ = msg
+        if ok and extras and extras.get("alert"):
+            site_name = site["name"]
             alerte_msg = "MP non lu sur " + site_name
             log.info("[" + site_name + "] " + alerte_msg)
             if args.verbose or args.mp:
                 send_pushover(cfg, "Autovisit - MP", alerte_msg)
             results_ok.append("OK [" + site_name + "] " + alerte_msg)
             site_alert = "MP non lu"
-            status_sites.append({"name": site["name"], "url": site_domain, "ok": True, "stats": site_stats_str, "alert": site_alert})
+            status_sites.append({"name": site_name, "url": site_domain, "ok": True, "stats": site_stats_str, "alert": site_alert})
         else:
             (results_ok if ok else results_err).append(msg)
             status_sites.append({"name": site["name"], "url": site_domain, "ok": ok, "stats": site_stats_str, "alert": site_alert})
         # Historisation SQLite
         snap_status = "ok" if ok else "error"
-        snap_error = None if ok else (msg if isinstance(msg, str) else str(msg))
+        snap_error = None if ok else msg
         write_snapshot(site["name"], snap_status, snap_error, site_alert, parse_stats_str(site_stats_str))
     log.removeHandler(capture_handler)
     log.info("=== Resume ===")
