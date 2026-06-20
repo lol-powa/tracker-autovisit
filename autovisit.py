@@ -249,16 +249,23 @@ def extract_stats_json(data, fields):
             stats[key] = "N/A"
     return stats
 
-def fetch_extra_stats(session, url, fields, name, timeout):
-    """Recupere une URL JSON avec la session courante et extrait
-    les champs definis dans fields via extract_stats_json.
-    En cas d'echec (HTTP, timeout, JSON malforme), log un warning
-    et retourne un dict vide pour ne pas casser la collecte principale."""
+def fetch_extra_stats(session, url, fields, name, timeout, fmt="json"):
+    """Recupere une URL supplementaire (JSON ou HTML) avec la session courante
+    et extrait les champs definis dans fields. Le format est selectionne par fmt :
+      - "json" (defaut) : parse JSON puis extract_stats_json (dotted path)
+      - "html"          : recupere r.text puis extract_stats (regex polymorphe)
+    En cas d'echec (HTTP, timeout, parse), log un warning et retourne un dict vide
+    pour ne pas casser la collecte principale."""
+    if fmt not in ("json", "html"):
+        log.warning("[" + name + "] extra_format inconnu '" + str(fmt) + "', fallback json")
+        fmt = "json"
     try:
         r = session.get(url, timeout=timeout)
         if r.status_code != 200:
             log.warning("[" + name + "] extra_url HTTP " + str(r.status_code))
             return {}
+        if fmt == "html":
+            return extract_stats(r.text, fields)
         data = r.json()
     except Exception as e:
         log.warning("[" + name + "] extra_url echec : " + str(e))
@@ -788,7 +795,7 @@ def visit_site_session(site):
     extra_url = site.get("extra_url")
     extra_fields = site.get("extra_stats")
     if extra_url and extra_fields:
-        extra = fetch_extra_stats(session, extra_url, extra_fields, name, timeout)
+        extra = fetch_extra_stats(session, extra_url, extra_fields, name, timeout, site.get("extra_format", "json"))
         if extra:
             stats.update(extra)
     if stats:
@@ -969,7 +976,7 @@ def visit_site(site):
                                 extra_url = site.get("extra_url")
                                 extra_fields = site.get("extra_stats")
                                 if extra_url and extra_fields:
-                                    extra = fetch_extra_stats(session, extra_url, extra_fields, name, timeout)
+                                    extra = fetch_extra_stats(session, extra_url, extra_fields, name, timeout, site.get("extra_format", "json"))
                                     if extra:
                                         stats.update(extra)
                                 if stats:
@@ -1043,7 +1050,7 @@ def visit_site(site):
                         extra_url = site.get("extra_url")
                         extra_fields = site.get("extra_stats")
                         if extra_url and extra_fields:
-                            extra = fetch_extra_stats(session, extra_url, extra_fields, name, timeout)
+                            extra = fetch_extra_stats(session, extra_url, extra_fields, name, timeout, site.get("extra_format", "json"))
                             if extra:
                                 stats.update(extra)
                         if stats:
@@ -1136,7 +1143,7 @@ def visit_site(site):
                     extra_url = site.get("extra_url")
                     extra_fields = site.get("extra_stats")
                     if extra_url and extra_fields:
-                        extra = fetch_extra_stats(session, extra_url, extra_fields, name, timeout)
+                        extra = fetch_extra_stats(session, extra_url, extra_fields, name, timeout, site.get("extra_format", "json"))
                         if extra:
                             stats.update(extra)
                     if stats:
@@ -1189,7 +1196,7 @@ def visit_site(site):
         extra_url = site.get("extra_url")
         extra_fields = site.get("extra_stats")
         if extra_url and extra_fields:
-            extra = fetch_extra_stats(session, extra_url, extra_fields, name, timeout)
+            extra = fetch_extra_stats(session, extra_url, extra_fields, name, timeout, site.get("extra_format", "json"))
             if extra:
                 stats.update(extra)
         if stats:
