@@ -725,12 +725,25 @@ def visit_site_session(site):
 
     # Stats
     site_stats = site.get("stats", {})
+    stats = {}
     if site_stats:
         stats = extract_stats(rv.text, site_stats)
-        stats_str = format_stats(stats, site)
-        log.info("[" + name + "] Stats -- " + stats_str)
+    # Stats supplementaires via endpoint JSON (extra_url + extra_stats)
+    extra_url = site.get("extra_url")
+    extra_fields = site.get("extra_stats")
+    if extra_url and extra_fields:
+        extra = fetch_extra_stats(session, extra_url, extra_fields, name, timeout)
+        if extra:
+            stats.update(extra)
+    if stats:
+        log.info("[" + name + "] Stats -- " + format_stats(stats, site))
 
-    # Alertes MP
+    # Alertes MP via stat numerique surveillee (alert_stat)
+    stat_label = check_alert_stat(stats, site, name)
+    if stat_label:
+        return True, ("ALERTE", name, stat_label, True)
+
+    # Alertes MP via mot-cle dans le HTML (alert_keywords)
     alert_keywords = site.get("alert_keywords", [])
     for kw in alert_keywords:
         if kw.lower() in body_lower:
