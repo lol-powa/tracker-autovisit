@@ -918,10 +918,18 @@ def visit_site(site):
                                             return True, ("ALERTE", name, kw, True)
                                 # Stats
                                 site_stats = site.get("stats", {})
+                                stats = {}
                                 if site_stats:
                                     stats = extract_stats(rv.text, site_stats)
-                                    stats_str = format_stats(stats, site)
-                                    log.info("[" + name + "] Stats -- " + stats_str)
+                                # Stats supplementaires via endpoint JSON (extra_url + extra_stats)
+                                extra_url = site.get("extra_url")
+                                extra_fields = site.get("extra_stats")
+                                if extra_url and extra_fields:
+                                    extra = fetch_extra_stats(session, extra_url, extra_fields, name, timeout)
+                                    if extra:
+                                        stats.update(extra)
+                                if stats:
+                                    log.info("[" + name + "] Stats -- " + format_stats(stats, site))
                                 matched = next((kw for kw in custom_keywords if kw.lower() in rv.text.lower()), None)
                                 if matched:
                                     msg = "OK [" + name + "] Connexion reussie apres MFA JSON (mot-cle : " + matched + ")"
@@ -968,14 +976,22 @@ def visit_site(site):
                             else:
                                 rv = session.get(verify_url, headers=auth_headers, timeout=timeout)
                             stats_json = site.get("stats_json", {})
+                            stats = {}
                             if stats_json:
                                 try:
                                     jdata = rv.json()
                                     stats = extract_stats_json(jdata, stats_json)
-                                    stats_str = format_stats(stats, site)
-                                    log.info("[" + name + "] Stats -- " + stats_str)
                                 except Exception as e:
                                     log.warning("[" + name + "] Erreur parsing stats JSON : " + str(e))
+                            # Stats supplementaires via endpoint JSON (extra_url + extra_stats)
+                            extra_url = site.get("extra_url")
+                            extra_fields = site.get("extra_stats")
+                            if extra_url and extra_fields:
+                                extra = fetch_extra_stats(session, extra_url, extra_fields, name, timeout)
+                                if extra:
+                                    stats.update(extra)
+                            if stats:
+                                log.info("[" + name + "] Stats -- " + format_stats(stats, site))
                             # Alertes MP via mp_url
                             mp_url = site.get("mp_url")
                             mp_json_field = site.get("mp_json_field", "total")
@@ -998,10 +1014,18 @@ def visit_site(site):
                                     return True, ("ALERTE", name, kw, True)
                             # Stats
                             site_stats = site.get("stats", {})
+                            stats = {}
                             if site_stats:
                                 stats = extract_stats(rv.text, site_stats)
-                                stats_str = format_stats(stats, site)
-                                log.info("[" + name + "] Stats -- " + stats_str)
+                            # Stats supplementaires via endpoint JSON (extra_url + extra_stats)
+                            extra_url = site.get("extra_url")
+                            extra_fields = site.get("extra_stats")
+                            if extra_url and extra_fields:
+                                extra = fetch_extra_stats(session, extra_url, extra_fields, name, timeout)
+                                if extra:
+                                    stats.update(extra)
+                            if stats:
+                                log.info("[" + name + "] Stats -- " + format_stats(stats, site))
                         msg = "OK [" + name + "] Connexion reussie (champ JSON : " + success_json_field + ")"
                         log.info(msg)
                         return True, msg
@@ -1062,8 +1086,15 @@ def visit_site(site):
                     stats = {}
                     if site_stats:
                         stats = extract_stats(r3.text, site_stats)
-                        stats_str = format_stats(stats, site)
-                        log.info("[" + name + "] Stats -- " + stats_str)
+                    # Stats supplementaires via endpoint JSON (extra_url + extra_stats)
+                    extra_url = site.get("extra_url")
+                    extra_fields = site.get("extra_stats")
+                    if extra_url and extra_fields:
+                        extra = fetch_extra_stats(session, extra_url, extra_fields, name, timeout)
+                        if extra:
+                            stats.update(extra)
+                    if stats:
+                        log.info("[" + name + "] Stats -- " + format_stats(stats, site))
                     # Alertes MP via stat numerique surveillee (alert_stat)
                     stat_label = check_alert_stat(stats, site, name)
                     if stat_label:
