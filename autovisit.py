@@ -951,16 +951,18 @@ def visit_site(site):
                 success_json_field = site.get("success_json_field")
                 if success_json_field:
                     if data.get(success_json_field):
-                        # GET verify_url avec Bearer token si présent
+                        # Detection MP / extraction stats : depuis verify_url si declare,
+                        # sinon directement depuis le body JSON de la reponse de login.
                         verify_url = site.get("verify_url")
                         jwt_token = data.get("token") or data.get("access_token")
+                        if jwt_token:
+                            auth_headers = {"Authorization": "Bearer " + jwt_token}
+                        else:
+                            auth_headers = {}
+                        auth_headers["Accept"] = "application/json"
+                        auth_headers["User-Agent"] = "Mozilla/5.0 (Windows NT 10.0; Win64; x64; rv:124.0) Gecko/20100101 Firefox/124.0"
+                        rv = None
                         if verify_url:
-                            if jwt_token:
-                                auth_headers = {"Authorization": "Bearer " + jwt_token}
-                            else:
-                                auth_headers = {}
-                            auth_headers["Accept"] = "application/json"
-                            auth_headers["User-Agent"] = "Mozilla/5.0 (Windows NT 10.0; Win64; x64; rv:124.0) Gecko/20100101 Firefox/124.0"
                             if use_curl and site.get("stats_json"):
                                 import requests as _req
                                 _s = _req.Session()
@@ -975,57 +977,57 @@ def visit_site(site):
                                 rv = _s.get(verify_url, timeout=timeout)
                             else:
                                 rv = session.get(verify_url, headers=auth_headers, timeout=timeout)
-                            stats_json = site.get("stats_json", {})
-                            stats = {}
-                            if stats_json:
-                                try:
-                                    jdata = rv.json()
-                                    stats = extract_stats_json(jdata, stats_json)
-                                except Exception as e:
-                                    log.warning("[" + name + "] Erreur parsing stats JSON : " + str(e))
-                            # Stats supplementaires via endpoint JSON (extra_url + extra_stats)
-                            extra_url = site.get("extra_url")
-                            extra_fields = site.get("extra_stats")
-                            if extra_url and extra_fields:
-                                extra = fetch_extra_stats(session, extra_url, extra_fields, name, timeout)
-                                if extra:
-                                    stats.update(extra)
-                            if stats:
-                                log.info("[" + name + "] Stats -- " + format_stats(stats, site))
-                            # Alertes MP via mp_url
-                            mp_url = site.get("mp_url")
-                            mp_json_field = site.get("mp_json_field", "total")
-                            if mp_url:
-                                try:
-                                    rmp = session.get(mp_url, headers=auth_headers, timeout=timeout)
-                                    mp_data = rmp.json()
-                                    mp_count = get_json_path(mp_data, mp_json_field, 0)
-                                    if mp_count and int(mp_count) > 0:
-                                        log.info("[" + name + "] ALERTE : " + str(mp_count) + " MP non lu(s)")
-                                        return True, ("ALERTE", name, "mp_url", True)
-                                except Exception as e:
-                                    log.warning("[" + name + "] Erreur mp_url : " + str(e))
-                            # Alertes MP
-                            alert_keywords = site.get("alert_keywords", [])
-                            for kw in alert_keywords:
-                                if kw.lower() in rv.text.lower():
-                                    alert_label = site.get("alert_label", kw)
-                                    log.info("[" + name + "] ALERTE : " + alert_label)
-                                    return True, ("ALERTE", name, kw, True)
-                            # Stats
-                            site_stats = site.get("stats", {})
-                            stats = {}
-                            if site_stats:
-                                stats = extract_stats(rv.text, site_stats)
-                            # Stats supplementaires via endpoint JSON (extra_url + extra_stats)
-                            extra_url = site.get("extra_url")
-                            extra_fields = site.get("extra_stats")
-                            if extra_url and extra_fields:
-                                extra = fetch_extra_stats(session, extra_url, extra_fields, name, timeout)
-                                if extra:
-                                    stats.update(extra)
-                            if stats:
-                                log.info("[" + name + "] Stats -- " + format_stats(stats, site))
+                        # Sources unifiees : si pas de verify_url, on retombe sur le body de login.
+                        html_source = rv.text if rv is not None else json.dumps(data)
+                        try:
+                            json_source = rv.json() if rv is not None else data
+                        except Exception:
+                            json_source = data
+                        stats = {}
+                        # Stats JSON
+                        stats_json = site.get("stats_json", {})
+                        if stats_json:
+                            try:
+                                stats = extract_stats_json(json_source, stats_json)
+                            except Exception as e:
+                                log.warning("[" + name + "] Erreur parsing stats JSON : " + str(e))
+                        # Stats HTML
+                        site_stats = site.get("stats", {})
+                        if site_stats:
+                            stats.update(extract_stats(html_source, site_stats))
+                        # Stats supplementaires via endpoint JSON (extra_url + extra_stats)
+                        extra_url = site.get("extra_url")
+                        extra_fields = site.get("extra_stats")
+                        if extra_url and extra_fields:
+                            extra = fetch_extra_stats(session, extra_url, extra_fields, name, timeout)
+                            if extra:
+                                stats.update(extra)
+                        if stats:
+                            log.info("[" + name + "] Stats -- " + format_stats(stats, site))
+                        # Alertes MP via stat numerique surveillee (alert_stat)
+                        stat_label = check_alert_stat(stats, site, name)
+                        if stat_label:
+                            return True, ("ALERTE", name, stat_label, True)
+                        # Alertes MP via mp_url
+                        mp_url = site.get("mp_url")
+                        mp_json_field = site.get("mp_json_field", "total")
+                        if mp_url:
+                            try:
+                                rmp = session.get(mp_url, headers=auth_headers, timeout=timeout)
+                                mp_data = rmp.json()
+                                mp_count = get_json_path(mp_data, mp_json_field, 0)
+                                if mp_count and int(mp_count) > 0:
+                                    log.info("[" + name + "] ALERTE : " + str(mp_count) + " MP non lu(s)")
+                                    return True, ("ALERTE", name, "mp_url", True)
+                            except Exception as e:
+                                log.warning("[" + name + "] Erreur mp_url : " + str(e))
+                        # Alertes MP via mot-cle dans le HTML (alert_keywords)
+                        alert_keywords = site.get("alert_keywords", [])
+                        for kw in alert_keywords:
+                            if kw.lower() in html_source.lower():
+                                alert_label = site.get("alert_label", kw)
+                                log.info("[" + name + "] ALERTE : " + alert_label)
+                                return True, ("ALERTE", name, kw, True)
                         msg = "OK [" + name + "] Connexion reussie (champ JSON : " + success_json_field + ")"
                         log.info(msg)
                         return True, msg
