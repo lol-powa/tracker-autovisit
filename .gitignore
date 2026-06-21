@@ -47,3 +47,4 @@ downloads/
 
 # Backups locaux
 *.bak.*
+*.bak
