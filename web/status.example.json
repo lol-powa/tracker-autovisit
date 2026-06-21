@@ -1,77 +1,181 @@
 {
-  "updated": "2026-01-15 09:12:33",
+  "updated": "2026-01-15 10:00:00",
   "sites": [
-    { "name": "ABN", "url": "abn.lol", "ok": true,
-      "stats": "upload: 128,44 Go | download: 12,90 Go | ratio: 9,95 | chocos: 58213,71 | invitations: 5",
-      "alert": null, "last_ok": "2026-01-15 09:12:01" },
-    { "name": "AvistaZ", "url": "avistaz.to", "ok": true,
-      "stats": "upload: 91.27 GB | download: 15.62 GB | ratio: 5.84 | bonus: 11402.55",
-      "alert": null, "last_ok": "2026-01-15 09:12:02" },
-    { "name": "Blutopia", "url": "blutopia.cc", "ok": true,
-      "stats": "upload: 33.10 GiB | download: 27.44 GiB | ratio: 1.20 | bonus: 145300",
-      "alert": null, "last_ok": "2026-01-15 09:12:02" },
-    { "name": "BroadcasTheNet", "url": "broadcasthe.net", "ok": true,
-      "stats": "upload: 210.88 GB | bonus: 1,204,775 | lumens: 850",
-      "alert": null, "last_ok": "2026-01-15 09:12:03" },
-    { "name": "C411", "url": "c411.org", "ok": true,
-      "stats": "upload: 305.66 Go | download: 19.40 Go | ratio: 15.75",
-      "alert": null, "last_ok": "2026-01-15 09:12:03" },
-    { "name": "CinemaZ", "url": "cinemaz.to", "ok": true,
-      "stats": "upload: 142.05 GB | download: 38.71 GB | ratio: 3.67 | bonus: 9817.40",
-      "alert": "MP non lu", "last_ok": "2026-01-15 09:12:04" },
-    { "name": "GazelleGames", "url": "gazellegames.net", "ok": true,
-      "stats": "upload: 88.42 GB | download: 6.71 GB | download_total: 240.18 GB | ratio: 13.18 | gold: 12,840.0000 | score: 4.20",
-      "alert": "MP non lu", "last_ok": "2026-01-15 09:12:04" },
-    { "name": "GenerationFree", "url": "generation-free.org", "ok": true,
-      "stats": "upload: 2.71 TiB | download: 3 GiB | ratio: 902.33 | bonus: 318007",
-      "alert": null, "last_ok": "2026-01-15 09:12:05" },
-    { "name": "HDF", "url": "hdf.world", "ok": true,
-      "stats": "upload: 3.412 TB | download: 0.688 TB | ratio: 4.96 | bonus: 215,604,330",
-      "alert": null, "last_ok": "2026-01-15 09:12:05" },
-    { "name": "HDO", "url": "hd-only.org", "ok": true,
-      "stats": "upload: 118.40912 GB | download: 14.55703 GB | ratio: 8.13402",
-      "alert": null, "last_ok": "2026-01-15 09:12:06" },
-    { "name": "KroKonuTs", "url": "krokonuts.club", "ok": null,
-      "stats": null, "alert": null, "last_ok": "2026-01-12 09:12:00", "disabled": true },
-    { "name": "MTeam", "url": "www.mteam.fr", "ok": true,
-      "stats": "download: 4.27 To | bonus: 312,990 | gift_lvl: 105,000",
-      "alert": "MP non lu", "last_ok": "2026-01-15 09:12:07" },
-    { "name": "Nexum", "url": "nexum-core.com", "ok": true,
-      "stats": "upload: 174.8 Gio | download: 22.6 Gio | ratio: 7.73 | bonus: 421,338 | seeds: 64",
-      "alert": "MP non lu", "last_ok": "2026-01-15 09:12:07" },
-    { "name": "Nostradamus", "url": "nostradamus.foo", "ok": true,
-      "stats": "upload: 11.5 GiB | download: 0 B | bonus: 720 | rate: 27.10",
-      "alert": null, "last_ok": "2026-01-15 09:12:08" },
-    { "name": "Orpheus", "url": "orpheus.network", "ok": true,
-      "stats": "upload: 44.19 GiB | download: 290.55 MiB | ratio: 88.41 | bonus: 158,200 | tokens: 21",
-      "alert": null, "last_ok": "2026-01-15 09:12:08" },
-    { "name": "PassThePopcorn", "url": "passthepopcorn.me", "ok": true,
-      "stats": "upload: 233.70 GiB | download: 61.18 GiB | ratio: 3.82 | bonus: 2,914,066",
-      "alert": "MP non lu", "last_ok": "2026-01-15 09:12:09" },
-    { "name": "TeamFlix", "url": "tracker.teamflix.cc", "ok": true,
-      "stats": "upload: 27.06 GiB | download: 2 GiB | ratio: 13.53 | bonus: 8074 | seeding: 39",
-      "alert": null, "last_ok": "2026-01-15 09:12:09" },
-    { "name": "TheOldSchool", "url": "theoldschool.cc", "ok": true,
-      "stats": "upload: 318.91 GiB | download: 12.07 GiB | ratio: 26.42 | bonus: 1 045 720 | seeding: 88",
-      "alert": "MP non lu", "last_ok": "2026-01-15 09:12:10" },
-    { "name": "Torr9", "url": "torr9.net", "ok": true,
-      "stats": "upload: 0.92 To | download: 33.41 Go | ratio: 28.14 | seeds: 205 | completes: 178 | rank: 2940",
-      "alert": null, "last_ok": "2026-01-15 09:12:10" },
-    { "name": "TorrentLeech", "url": "www.torrentleech.org", "ok": true,
-      "stats": "upload: 287.4 GB | download: 61.9 GB | ratio: 4.642 | bonus: 13880.05 | invites: 3",
-      "alert": null, "last_ok": "2026-01-15 09:12:11" },
-    { "name": "Tr4ker", "url": "tr4ker.net", "ok": true,
-      "stats": "upload: 2.18 To | download: 4.00 Go | ratio: N/A | bonus: 207",
-      "alert": null, "last_ok": "2026-01-15 09:12:11" },
-    { "name": "UltimZone", "url": "ultimzone.org", "ok": false,
-      "stats": null, "alert": null, "last_ok": null },
-    { "name": "Valentine", "url": "valentine.wtf", "ok": false,
-      "stats": null, "alert": null, "last_ok": "2026-01-08 14:22:51" },
-    { "name": "WorldInHD", "url": "world-in-hd.net", "ok": true,
-      "stats": "upload: 19.330 Go | download: 2.000 Go | ratio: 9.66 | bonus: 23,50K",
-      "alert": null, "last_ok": "2026-01-15 09:12:12" },
-    { "name": "YggReborn", "url": "www.yggreborn.org", "ok": true,
-      "stats": "upload: 1.07 To | ratio: ∞",
-      "alert": "MP non lu", "last_ok": "2026-01-15 09:12:12" }
+    {
+      "name": "ABN",
+      "url": "abn.lol",
+      "ok": true,
+      "stats": "upload: 120,0 Go | download: 10,00 Go | ratio: 12,00 | chocos: 50000,00 | invitations: 1",
+      "alert": null,
+      "last_ok": "2026-01-15T09:55:00"
+    },
+    {
+      "name": "AvistaZ",
+      "url": "avistaz.to",
+      "ok": true,
+      "stats": "upload: 20.00 GB | download: 5.00 GB | ratio: 4.00 | bonus: 12345.67 | seeding: 10",
+      "alert": null,
+      "last_ok": "2026-01-15T09:55:10"
+    },
+    {
+      "name": "Blutopia",
+      "url": "blutopia.cc",
+      "ok": true,
+      "stats": "upload: 25.00 GiB | download: 10.00 GiB | ratio: 2.5 | bonus: 100 000 | seeding: 15 | tokens: 50",
+      "alert": null,
+      "last_ok": "2026-01-15T09:55:20"
+    },
+    {
+      "name": "BroadcasTheNet",
+      "url": "broadcasthe.net",
+      "ok": true,
+      "stats": "upload: 100.00 GB | bonus: 500,000 | lumens: 100",
+      "alert": null,
+      "last_ok": "2026-01-15T09:55:30"
+    },
+    {
+      "name": "C411",
+      "url": "c411.org",
+      "ok": true,
+      "stats": "upload: 200.00 Go | download: 10.00 Go | ratio: 20.00 | seeding: 50",
+      "alert": "MP non lu",
+      "last_ok": "2026-01-15T09:55:40"
+    },
+    {
+      "name": "CinemaZ",
+      "url": "cinemaz.to",
+      "ok": true,
+      "stats": "upload: 150.00 GB | download: 12.00 GB | ratio: 12.50 | bonus: 20000.00 | seeding: 18",
+      "alert": null,
+      "last_ok": "2026-01-15T09:55:50"
+    },
+    {
+      "name": "GazelleGames",
+      "url": "gazellegames.net",
+      "ok": true,
+      "stats": "ratio: 10.00 | score: 5.00 | gold: 10,000.0000 | upload: 80.00 GB | download: 8.00 GB | seeding: False",
+      "alert": "MP non lu",
+      "last_ok": "2026-01-15T09:56:00"
+    },
+    {
+      "name": "GenerationFree",
+      "url": "generation-free.org",
+      "ok": true,
+      "stats": "upload: 500.00 GiB | download: 1 GiB | ratio: 500.00 | bonus: 200 000 | seeding: 80 | tokens: 0",
+      "alert": null,
+      "last_ok": "2026-01-15T09:56:10"
+    },
+    {
+      "name": "HDF",
+      "url": "hdf.world",
+      "ok": true,
+      "stats": "upload: 2.000 TB | download: 500.000 GB | ratio: 4.00 | bonus: 100,000,000 | tokens: 100 | seeding: 100",
+      "alert": null,
+      "last_ok": "2026-01-15T09:56:20"
+    },
+    {
+      "name": "HDO",
+      "url": "hd-only.org",
+      "ok": true,
+      "stats": "upload: 100.00000 GB | download: 10.00000 GB | ratio: 10.00000 | seeding: 30",
+      "alert": null,
+      "last_ok": "2026-01-15T09:56:30"
+    },
+    {
+      "name": "MTeam",
+      "url": "www.mteam.fr",
+      "ok": true,
+      "stats": "bonus: 200,000 | download: 2.00 To | gift_lvl: 50,000",
+      "alert": "MP non lu",
+      "last_ok": "2026-01-15T09:56:50"
+    },
+    {
+      "name": "Nexum",
+      "url": "nexum-core.com",
+      "ok": true,
+      "stats": "upload: 100.0 Gio | download: 20.0 Gio | ratio: 5.00 | bonus: 300,000 | seeds: 40",
+      "alert": null,
+      "last_ok": "2026-01-15T09:57:00"
+    },
+    {
+      "name": "Nostradamus",
+      "url": "nostradamus.foo",
+      "ok": true,
+      "stats": "upload: 10.00 GiB | download: 0 B | points: 500 | rate: 20.00 | seeding: 10",
+      "alert": null,
+      "last_ok": "2026-01-15T09:57:10"
+    },
+    {
+      "name": "Orpheus",
+      "url": "orpheus.network",
+      "ok": true,
+      "stats": "bonus: 100,000 | upload: 30.00 GiB | download: 200.00 MiB | ratio: 150.00 | tokens: 20 | seeding: 20",
+      "alert": null,
+      "last_ok": "2026-01-15T09:57:20"
+    },
+    {
+      "name": "PassThePopcorn",
+      "url": "passthepopcorn.me",
+      "ok": true,
+      "stats": "upload: 150.00 GiB | download: 30.00 GiB | ratio: 5.00 | bonus: 1,000,000 | seeding: 25",
+      "alert": "MP non lu",
+      "last_ok": "2026-01-15T09:57:30"
+    },
+    {
+      "name": "TeamFlix",
+      "url": "tracker.teamflix.cc",
+      "ok": true,
+      "stats": "upload: 20.00 GiB | download: 1 GiB | ratio: 20.00 | bonus: 5 000 | seeding: 30",
+      "alert": null,
+      "last_ok": "2026-01-15T09:57:40"
+    },
+    {
+      "name": "TheOldSchool",
+      "url": "theoldschool.cc",
+      "ok": true,
+      "stats": "upload: 200.00 GiB | download: 5.00 GiB | ratio: 40.00 | seeding: 60 | bonus: 500 000 | tokens: 0",
+      "alert": "MP non lu",
+      "last_ok": "2026-01-15T09:57:50"
+    },
+    {
+      "name": "Torr9",
+      "url": "torr9.net",
+      "ok": true,
+      "stats": "ratio: 25.00 | upload: 500.00 Go | download: 20.00 Go | completes: 100 | seeding: 100 | rank: 500",
+      "alert": null,
+      "last_ok": "2026-01-15T09:58:00"
+    },
+    {
+      "name": "TorrentLeech",
+      "url": "www.torrentleech.org",
+      "ok": true,
+      "stats": "upload: 200.00 GB | download: 20.00 GB | ratio: 10.000 | points: 10000.00 | invites: 2 | seeding: 15",
+      "alert": null,
+      "last_ok": "2026-01-15T09:58:10"
+    },
+    {
+      "name": "Tr4ker",
+      "url": "tr4ker.net",
+      "ok": true,
+      "stats": "Upload: 1.00 To | Download: 1.00 Go | Ratio: N/A | Credits: 200",
+      "alert": null,
+      "last_ok": "2026-01-15T09:58:20"
+    },
+    {
+      "name": "WorldInHD",
+      "url": "world-in-hd.net",
+      "ok": true,
+      "stats": "upload: 20.000 Go | download: 1.000 Go | ratio: 20.00 | theias: 20,00K",
+      "alert": null,
+      "last_ok": "2026-01-15T09:58:50"
+    },
+    {
+      "name": "YggReborn",
+      "url": "www.yggreborn.org",
+      "ok": true,
+      "stats": "upload: 1.00 To | download: 0 o | ratio: ∞ | seeding: 20",
+      "alert": null,
+      "last_ok": "2026-01-15T09:59:00"
+    }
   ]
 }
