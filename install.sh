@@ -43,9 +43,18 @@ if [ ! -f "$SCRIPT_DIR/data/config.json" ]; then
     echo "Création de data/config.json (config globale)..."
     cat > "$SCRIPT_DIR/data/config.json" <<'JSONEOF'
 {
-    "pushover": {
-        "api_token": "TON_APP_TOKEN",
-        "user_key": "TON_USER_KEY"
+    "mail": {
+        "enabled": true,
+        "to": "autovisit@example.org"
+    },
+    "ntfy": {
+        "enabled": true,
+        "url": "https://ntfy.example.org",
+        "topic": "autovisit",
+        "auth_user": "autovisit",
+        "auth_pass": "CHANGE_ME",
+        "priority": 4,
+        "tags": "warning"
     }
 }
 JSONEOF
