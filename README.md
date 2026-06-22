@@ -20,11 +20,11 @@ Fork divergent de [Gusdezup/Autovisit](https://github.com/Gusdezup/Autovisit).
 
 ## Aperçu
 
-### Apperçu PC
-![Page web autovisit](docs/img/web-preview.png)
-
-### Apperçu adaptatif
-![Page web autovisit](docs/img/web-preview_adaptatif.png)
+<p align="center">
+  <img src="docs/img/web-preview.png" alt="Vue desktop" width="600">
+  &nbsp;&nbsp;
+  <img src="docs/img/web-preview_adaptatif.png" alt="Vue mobile" width="200">
+</p>
 
 ---
 
