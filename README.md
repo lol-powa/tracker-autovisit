@@ -95,7 +95,7 @@ Ensuite, créer un fichier par site dans `data/sites.d/` (voir les exemples de c
 
 ### Notifications (optionnel)
 
-Pour activer les notifications mail et/ou ntfy, créer `data/config.json` :
+Pour activer les notifications mail et/ou ntfy, modifier le fichier `data/config.json` :
 
 ```json
 {
