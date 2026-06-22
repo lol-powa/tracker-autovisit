@@ -274,13 +274,15 @@ def fetch_extra_stats(session, url, fields, name, timeout, fmt="json"):
 
 def is_retryable_error(msg):
     """Determine si un msg d'echec correspond a une erreur transitoire retryable.
-    Couvre : timeout, codes HTTP 5xx, 429, DNS, connexion refusee/reset."""
+    Couvre : timeout, codes HTTP 5xx, 429, 403, DNS, connexion refusee/reset."""
     if not msg:
         return False
     m = msg.lower()
     if re.search(r"\bhttp\s+5\d{2}\b", m):
         return True
     if re.search(r"\bhttp\s+429\b", m):
+        return True
+    if re.search(r"\bhttp\s+403\b", m):
         return True
     if "timeout" in m or "timed out" in m:
         return True
