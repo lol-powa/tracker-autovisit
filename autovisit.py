@@ -1395,19 +1395,51 @@ def list_sites(cfg):
             return "inline"
         return "-"
 
+    def get_path(s):
+        """Chemin de visite emprunte par le site."""
+        if s.get("use_playwright"):
+            return "playwright"
+        if s.get("session_cookies_file") or s.get("cf_solver"):
+            return "session"
+        return "visit"
+
+    def get_mp_type(s):
+        """Mecanisme de detection des MP non lus."""
+        if s.get("mp_url"):
+            return "api"
+        if s.get("alert_stat"):
+            return "stat"
+        if s.get("alert_keywords"):
+            return "kw"
+        return "-"
+
+    def fmt_last_ok(iso_str):
+        """Format court : MM-DD HH:MM, ou - si pas de visite OK."""
+        if not iso_str:
+            return "-"
+        # Tolere ISO avec T ou espace
+        s = iso_str.replace("T", " ")
+        # On garde MM-DD HH:MM
+        try:
+            return s[5:16]
+        except Exception:
+            return iso_str[:11]
+
     COL = [
-        ("Nom",    20),
-        ("Actif",   5),
-        ("URL",    30),
-        ("TOTP",    4),
-        ("2FA",     8),
-        ("Stats",   5),
-        ("MP",      4),
-        ("Curl",    4),
+        ("Nom",        20),
+        ("Actif",       5),
+        ("URL",        30),
+        ("Chemin",     10),
+        ("TOTP",        4),
+        ("2FA",         8),
+        ("Stats",       5),
+        ("MP",          4),
+        ("CF",          2),
+        ("Dernier OK", 11),
     ]
 
     sep = "─" * (sum(w for _, w in COL) + len(COL) * 2)
-    header = "  ".join(name.ljust(w) for name, w in COL)
+    header = "  ".join(n.ljust(w) for n, w in COL)
     print(header)
     print(sep)
 
@@ -1416,18 +1448,22 @@ def list_sites(cfg):
         totp   = "✓" if s.get("totp_secret") else "-"
         two_fa = get_2fa_type(s)
         stats  = "✓" if s.get("stats") or s.get("stats_json") else "-"
-        mp     = "✓" if s.get("alert_keywords") else "-"
-        curl   = "✓" if s.get("use_curl_cffi") else "-"
+        mp     = get_mp_type(s)
+        path   = get_path(s)
+        cf     = "✓" if s.get("cf_solver") else "-"
+        lastok = fmt_last_ok(last_ok_date(s["name"]))
 
         row = [
             s["name"][:COL[0][1]],
             actif,
             trunc(s.get("url", ""), COL[2][1]),
+            path,
             totp,
             two_fa,
             stats,
             mp,
-            curl,
+            cf,
+            lastok,
         ]
         print("  ".join(str(v).ljust(w) for v, (_, w) in zip(row, COL)))
 
