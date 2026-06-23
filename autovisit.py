@@ -593,6 +593,19 @@ def visit_site_playwright(site):
                 log.info(msg)
                 return True, msg, None
 
+            # Appel extra_url tant que le navigateur est encore ouvert (page.request
+            # reutilise cookies et fingerprint du navigateur).
+            extra_data = None
+            extra_url_cfg = site.get("extra_url")
+            if extra_url_cfg:
+                try:
+                    r_extra = page.request.get(extra_url_cfg, timeout=site.get("timeout", 20) * 1000)
+                    if r_extra.status == 200:
+                        extra_data = r_extra.json()
+                    else:
+                        log.warning("[" + name + "] extra_url HTTP " + str(r_extra.status))
+                except Exception as e:
+                    log.warning("[" + name + "] extra_url echec : " + str(e))
             cookies = page.context.cookies()
             browser.close()
 
@@ -605,6 +618,14 @@ def visit_site_playwright(site):
                 jdata = intercepted.get(stats_url)
                 if jdata:
                     stats = extract_stats_json(jdata, stats_json)
+                    # Stats supplementaires via endpoint JSON additionnel (extra_url + extra_stats)
+                    # Appel via la session Playwright pour reutiliser les cookies/fingerprint navigateur.
+                    extra_fields = site.get("extra_stats")
+                    if extra_data and extra_fields:
+                        for label, jpath in extra_fields.items():
+                            val = get_json_path(extra_data, jpath)
+                            if val is not None:
+                                stats[label] = str(val)
                     stats_str = format_stats(stats, site)
                     log.info("[" + name + "] Stats -- " + stats_str)
             # MP via mp_url intercepte
@@ -1191,8 +1212,9 @@ def visit_site(site):
                 log.error("[" + name + "] pyotp non installe -- 2FA impossible")
                 return False, "ECHEC [" + name + "] pyotp manquant", None
             log.info("[" + name + "] Page 2FA detectee, envoi du code TOTP")
-            # GET de la page 2FA pour recuperer le bon token CSRF
-            r2fa = session.get(r2.url, timeout=timeout)
+            # Le formulaire 2FA est dans la reponse au POST initial (r2.text),
+            # pas dans un GET ulterieur de la meme URL (qui re-affiche la page de login vierge).
+            r2fa = r2
             totp_code = pyotp.TOTP(totp_secret).now()
             totp_field = site.get("totp_field", "code")
             totp_payload = {totp_field: totp_code}
@@ -1208,7 +1230,21 @@ def visit_site(site):
             if hidden2:
                 log.info("[" + name + "] Champs hidden 2FA extraits : " + ", ".join(hidden2.keys()))
             time.sleep(random.uniform(0.5, 1.0))
-            r3 = session.post(r2.url, data=totp_payload, timeout=timeout, allow_redirects=True)
+            # Extraction de l'action du formulaire 2FA (les sites Gazelle postent souvent
+            # sur une URL distincte de la page d'affichage, ex: login.php?act=otp).
+            otp_post_url = r2.url
+            m_action = re.search(r'<form[^>]*id="loginform"[^>]*action="([^"]+)"', r2fa.text)
+            if not m_action:
+                m_action = re.search(r'<form[^>]*action="([^"]+)"[^>]*id="loginform"', r2fa.text)
+            if m_action:
+                action = m_action.group(1)
+                if action.startswith("http"):
+                    otp_post_url = action
+                else:
+                    base = r2.url.rsplit("/", 1)[0]
+                    otp_post_url = base + "/" + action.lstrip("/")
+                log.info("[" + name + "] POST 2FA cible : " + otp_post_url)
+            r3 = session.post(otp_post_url, data=totp_payload, timeout=timeout, allow_redirects=True)
             # GET verify_url post-2FA pour recuperer la page contenant la top-bar (stats)
             verify_url = site.get("verify_url")
             if verify_url:
