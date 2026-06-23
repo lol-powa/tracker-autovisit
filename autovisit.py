@@ -7,7 +7,7 @@ import subprocess
 import sys
 import time
 import random
-from datetime import datetime
+from datetime import datetime, timedelta
 from pathlib import Path
 from collections import deque
 import requests
@@ -318,6 +318,38 @@ def init_history_db():
         conn.close()
     except Exception as e:
         log.warning("Init history.db echouee : " + str(e))
+
+def purge_old_history(days):
+    """Supprime les snapshots plus vieux que `days` jours. Retourne le nombre supprime."""
+    if not days or days <= 0:
+        return 0
+    import sqlite3
+    cutoff = (datetime.now() - timedelta(days=days)).strftime("%Y-%m-%d %H:%M:%S")
+    try:
+        conn = sqlite3.connect(HISTORY_DB)
+        cur = conn.execute("DELETE FROM stat_snapshots WHERE captured_at < ?", (cutoff,))
+        n = cur.rowcount
+        conn.commit()
+        conn.close()
+        return n
+    except Exception as e:
+        log.warning("Purge history echouee : " + str(e))
+        return 0
+
+def purge_old_logs(days):
+    """Supprime les visit_YYYY-MM.log plus vieux que `days` jours. Retourne le nombre supprime."""
+    if not days or days <= 0:
+        return 0
+    cutoff = time.time() - days * 86400
+    n = 0
+    try:
+        for p in (DATA_DIR / "logs").glob("visit_*.log"):
+            if p.stat().st_mtime < cutoff:
+                p.unlink()
+                n += 1
+    except Exception as e:
+        log.warning("Purge logs echouee : " + str(e))
+    return n
 
 def parse_stats_str(s):
     """Parse 'upload: X | ratio: Y | bonus: Z' en dict."""
@@ -1343,6 +1375,11 @@ def main():
         return
     log.info("=== Demarrage -- " + str(len(sites)) + " site(s) a visiter ===")
     init_history_db()
+    ret = cfg.get("retention", {})
+    n_hist = purge_old_history(ret.get("history_days", 0))
+    n_logs = purge_old_logs(ret.get("logs_days", 0))
+    if n_hist or n_logs:
+        log.info("Purge automatique : " + str(n_hist) + " snapshot(s), " + str(n_logs) + " log(s)")
     results_ok  = []
     results_err = []
     # Collecte pour status.json
