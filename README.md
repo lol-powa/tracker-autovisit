@@ -314,9 +314,9 @@ Stats principales et complémentaires sont fusionnées dans une seule ligne `Sta
 |---|---|
 | `visit_site()` (auth username/password classique) | ✅ |
 | `visit_site_session()` (cookies pré-existants ou FlareSolverr) | ✅ |
-| `visit_site_playwright()` (Firefox headless) | ❌ |
+| `visit_site_playwright()` (Firefox headless, branche intercept) | ✅ |
 
-Pour les sites Playwright, passer par `playwright_intercept` + `playwright_stats_url` (interception XHR/fetch d'une URL d'API exposée par la SPA).
+Côté Playwright, l'appel `extra_url` est effectué via `page.request.get()` tant que le navigateur est ouvert, ce qui réutilise cookies et fingerprint navigateur — utile sur les sites à fingerprint TLS strict où une session `requests` externe se ferait bloquer. Pour les SPA dont les stats ne sont pas exposées sur un endpoint JSON tiers, passer par `playwright_intercept` + `playwright_stats_url` (interception XHR/fetch).
 
 ---
 
@@ -533,6 +533,14 @@ Plutôt que de coller un `cf_clearance` à la main (qui expire vite, parfois en 
 À chaque visite, le script envoie l'URL cible à FlareSolverr, qui renvoie le `cf_clearance` valide **et** le User-Agent utilisé pour l'obtenir. Le script reprend ce User-Agent pour la session (le `cf_clearance` y est lié), donc l'`user_agent` du fichier de config n'est plus nécessaire. Le login classique s'enchaîne derrière le cookie Cloudflare, comme en mode hybride.
 
 Comme le cookie est régénéré à chaque exécution, plus rien à coller ni à renouveler à la main. Seule contrainte qui persiste : FlareSolverr doit sortir sur Internet par la même IP publique que le script (cf. la note plus haut sur `cf_clearance` lié à l'IP).
+
+Le délai accordé à FlareSolverr pour résoudre le challenge se règle via `cf_solver_timeout` (en secondes, défaut : `60`). Augmenter cette valeur si les logs montrent des timeouts FlareSolverr ; la diminuer n'apporte rien (le solver rend la main dès qu'il a fini).
+
+**Prérequis** : une instance FlareSolverr accessible depuis la machine où tourne le script. Le plus simple est un conteneur Docker dédié :
+```bash
+docker run -d --name flaresolverr --restart unless-stopped \
+  -p 127.0.0.1:8191:8191 ghcr.io/flaresolverr/flaresolverr:latest
+```
 
 ### Site ASP.NET
 
