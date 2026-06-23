@@ -264,7 +264,7 @@ def fetch_extra_stats(session, url, fields, name, timeout, fmt="json"):
       - "html"          : recupere r.text puis extract_stats (regex polymorphe)
     En cas d'echec (HTTP, timeout, parse), log un warning et retourne un dict vide
     pour ne pas casser la collecte principale."""
-    if fmt not in ("json", "html"):
+    if fmt not in ("json", "html", "html_count"):
         log.warning("[" + name + "] extra_format inconnu '" + str(fmt) + "', fallback json")
         fmt = "json"
     try:
@@ -274,6 +274,14 @@ def fetch_extra_stats(session, url, fields, name, timeout, fmt="json"):
             return {}
         if fmt == "html":
             return extract_stats(r.text, fields)
+        if fmt == "html_count":
+            out = {}
+            for field, pattern in fields.items():
+                try:
+                    out[field] = str(len(re.findall(pattern, r.text)))
+                except Exception as e:
+                    log.warning("[" + name + "] extra_stats html_count " + field + " : " + str(e))
+            return out
         data = r.json()
     except Exception as e:
         log.warning("[" + name + "] extra_url echec : " + str(e))
