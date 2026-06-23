@@ -852,6 +852,10 @@ def visit_site(site):
             "Accept-Language": "fr-FR,fr;q=0.9,en;q=0.8",
         })
 
+    extra_headers = site.get("extra_headers", {})
+    if extra_headers:
+        session.headers.update(extra_headers)
+
     try:
         get_headers = {"Accept-Encoding": "identity"} if use_curl else {}
 
@@ -912,10 +916,6 @@ def visit_site(site):
         post_url = site.get("post_url", site["url"])
         log.info("[" + name + "] Envoi des identifiants")
         time.sleep(random.uniform(0.5, 1.5))
-
-        extra_headers = site.get("extra_headers", {})
-        if extra_headers:
-            session.headers.update(extra_headers)
 
         if site.get("api_json"):
             post_headers = {"Content-Type": "application/json"}
