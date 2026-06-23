@@ -60,6 +60,8 @@ def parse_args():
     parser.add_argument("--site",    type=str, nargs="+", default=None, help="Visiter uniquement ces sites")
     parser.add_argument("--stats",   action="store_true", help="Afficher uniquement les lignes de stats")
     parser.add_argument("--json-output", action="store_true", help="Ecrire status.json apres le run")
+    parser.add_argument("--history-purge", type=int, metavar="JOURS",
+        help="Purger les snapshots plus vieux que N jours (avec confirmation)")
     args = parser.parse_args()
     return args
 
@@ -1347,6 +1349,25 @@ def list_sites(cfg):
 def main():
     args  = parse_args()
     cfg   = load_config()
+    if getattr(args, "history_purge", None) is not None:
+        if args.history_purge <= 0:
+            print("Erreur : le nombre de jours doit etre positif.")
+            sys.exit(1)
+        import sqlite3
+        cutoff = (datetime.now() - timedelta(days=args.history_purge)).strftime("%Y-%m-%d %H:%M:%S")
+        conn = sqlite3.connect(HISTORY_DB)
+        n = conn.execute("SELECT COUNT(*) FROM stat_snapshots WHERE captured_at < ?", (cutoff,)).fetchone()[0]
+        conn.close()
+        if n == 0:
+            print("Aucun snapshot anterieur a " + str(args.history_purge) + " jours.")
+            sys.exit(0)
+        reponse = input("Supprimer " + str(n) + " snapshot(s) anterieur(s) a " + str(args.history_purge) + " jours ? [oui/non] ")
+        if reponse.strip().lower() not in ("oui", "o", "yes", "y"):
+            print("Annule.")
+            sys.exit(0)
+        deleted = purge_old_history(args.history_purge)
+        print(str(deleted) + " snapshot(s) supprime(s).")
+        sys.exit(0)
     if args.stats:
         for handler in logging.root.handlers:
             if isinstance(handler, logging.StreamHandler) and handler.stream == sys.stdout:
