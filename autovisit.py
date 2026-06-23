@@ -62,6 +62,12 @@ def parse_args():
     parser.add_argument("--json-output", action="store_true", help="Ecrire status.json apres le run")
     parser.add_argument("--history-purge", type=int, metavar="JOURS",
         help="Purger les snapshots plus vieux que N jours (avec confirmation)")
+    parser.add_argument("--history-show", type=str, metavar="SITE",
+        help="Afficher les derniers snapshots d un site")
+    parser.add_argument("--last", type=int, default=10, metavar="N",
+        help="Nombre de snapshots a afficher avec --history-show (defaut: 10)")
+    parser.add_argument("--raw", action="store_true",
+        help="Format brut pour --history-show")
     args = parser.parse_args()
     return args
 
@@ -352,6 +358,49 @@ def purge_old_logs(days):
     except Exception as e:
         log.warning("Purge logs echouee : " + str(e))
     return n
+
+def show_history(site_name, last=10, raw=False):
+    """Affiche les derniers snapshots d un site. Format parse par defaut, brut si raw=True."""
+    import sqlite3
+    import json as _json
+    try:
+        conn = sqlite3.connect(HISTORY_DB)
+        rows = conn.execute(
+            "SELECT captured_at, status, error, alert, fields_json "
+            "FROM stat_snapshots WHERE site = ? ORDER BY id DESC LIMIT ?",
+            (site_name, last),
+        ).fetchall()
+        conn.close()
+    except Exception as e:
+        print("Erreur de lecture de history.db : " + str(e))
+        return
+    if not rows:
+        print("Aucun snapshot trouve pour " + site_name + ".")
+        return
+    if raw:
+        print("{:<20}  {:<6}  {:<12}  fields_json".format("captured_at", "status", "alert"))
+        print("-" * 100)
+        for captured_at, status, error, alert, fields_json in rows:
+            alert_str = alert or ""
+            print("{:<20}  {:<6}  {:<12}  {}".format(captured_at, status, alert_str, fields_json))
+        return
+    print("=== " + site_name + " -- " + str(len(rows)) + " dernier(s) snapshot(s) ===")
+    for captured_at, status, error, alert, fields_json in rows:
+        print()
+        tag = "[" + status + "]"
+        extras = ""
+        if alert:
+            extras += "  ALERTE: " + alert
+        if error and status != "ok":
+            extras += "  " + error
+        print(captured_at + "  " + tag + extras)
+        try:
+            fields = _json.loads(fields_json)
+            if fields:
+                line = " | ".join(k + ": " + str(v) for k, v in fields.items())
+                print("  " + line)
+        except Exception:
+            pass
 
 def parse_stats_str(s):
     """Parse 'upload: X | ratio: Y | bonus: Z' en dict."""
@@ -1367,6 +1416,9 @@ def main():
             sys.exit(0)
         deleted = purge_old_history(args.history_purge)
         print(str(deleted) + " snapshot(s) supprime(s).")
+        sys.exit(0)
+    if getattr(args, "history_show", None):
+        show_history(args.history_show, last=args.last, raw=args.raw)
         sys.exit(0)
     if args.stats:
         for handler in logging.root.handlers:
