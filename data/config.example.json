@@ -13,7 +13,7 @@
     "tags": "warning"
   },
   "retention": {
-    "history_days": 365,
+    "history_days": 90,
     "logs_days": 90
   }
 }

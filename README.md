@@ -95,7 +95,12 @@ Ensuite, créer un fichier par site dans `data/sites.d/` (voir les exemples de c
 
 ### Notifications (optionnel)
 
-Pour activer les notifications mail et/ou ntfy, modifier le fichier `data/config.json` :
+Au premier lancement, copier le template puis l'éditer :
+```bash
+cp data/config.example.json data/config.json
+```
+
+Pour activer les notifications mail et/ou ntfy, éditer `data/config.json` :
 
 ```json
 {
@@ -117,7 +122,7 @@ Pour activer les notifications mail et/ou ntfy, modifier le fichier `data/config
 
 Mail via msmtp (à configurer côté système, root), ntfy via HTTP POST avec auth basique.
 
-Sans `config.json`, le script tourne en mode silencieux (logs seulement).
+Le fichier `data/config.json` est requis pour lancer le script ; sans lui, le script s'arrête avec une erreur explicite. Les sections `mail` et `ntfy` peuvent être désactivées (`enabled: false`), auquel cas seul le journal local est écrit.
 
 ---
 
@@ -144,9 +149,15 @@ Chaque site a son propre fichier dans `data/sites.d/<slug>.json` (slug = nom du 
         "auth_pass": "CHANGE_ME",
         "priority": 4,
         "tags": "warning"
+    },
+    "retention": {
+        "history_days": 90,
+        "logs_days": 90
     }
 }
 ```
+
+Le bloc `retention` est optionnel. Si présent, le script purge silencieusement au démarrage les snapshots SQLite et les fichiers `visit_YYYY-MM.log` plus anciens que les durées indiquées. Mettre `0` (ou omettre la clé) désactive la purge correspondante.
 
 `data/sites.d/<slug>.json` (un fichier par site, objet site brut) :
 
