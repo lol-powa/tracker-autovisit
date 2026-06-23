@@ -48,3 +48,6 @@ downloads/
 # Backups locaux
 *.bak
 *.bak.*
+
+# Scripts de patch ephemeres
+tools/
