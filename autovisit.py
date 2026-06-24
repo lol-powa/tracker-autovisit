@@ -367,6 +367,20 @@ def purge_old_logs(days):
         log.warning("Purge logs echouee : " + str(e))
     return n
 
+def resolve_site_name(arg, cfg):
+    """Resout un argument CLI (alias court ou nom, casse libre) vers le nom canonique.
+    Renvoie le champ name exact du JSON site, ou None si introuvable."""
+    if not arg:
+        return None
+    needle = arg.strip().lower()
+    for s in cfg.get("sites", []):
+        if s.get("name", "").lower() == needle:
+            return s["name"]
+        for a in s.get("aliases", []):
+            if a.lower() == needle:
+                return s["name"]
+    return None
+
 def show_history(site_name, last=10, raw=False):
     """Affiche les derniers snapshots d un site. Format parse par defaut, brut si raw=True."""
     import sqlite3
@@ -1498,7 +1512,11 @@ def main():
         print(str(deleted) + " snapshot(s) supprime(s).")
         sys.exit(0)
     if getattr(args, "history_show", None):
-        show_history(args.history_show, last=args.last, raw=args.raw)
+        canonical = resolve_site_name(args.history_show, cfg)
+        if canonical is None:
+            print("Site introuvable : " + args.history_show)
+            sys.exit(1)
+        show_history(canonical, last=args.last, raw=args.raw)
         sys.exit(0)
     if args.stats:
         for handler in logging.root.handlers:
@@ -1514,14 +1532,20 @@ def main():
             log.warning("Aucun site avec stats configure.")
             return
     if args.site:
-        def matches(s):
-            return any(
-                s["name"].lower() == needle or any(a.lower() == needle for a in s.get("aliases", []))
-                for needle in [n.lower() for n in args.site]
-            )
-        sites = [s for s in sites if matches(s)]
+        resolved = {}
+        unresolved = []
+        for arg in args.site:
+            canonical = resolve_site_name(arg, cfg)
+            if canonical is None:
+                unresolved.append(arg)
+            else:
+                resolved[canonical] = True
+        if unresolved:
+            log.error("Sites introuvables : " + ", ".join(unresolved))
+            sys.exit(1)
+        sites = [s for s in sites if s["name"] in resolved]
         if not sites:
-            log.error("Sites introuvables : " + ", ".join(args.site))
+            log.error("Aucun site actif correspondant a : " + ", ".join(args.site))
             sys.exit(1)
     if not sites:
         log.warning("Aucun site actif trouve dans la config.")
