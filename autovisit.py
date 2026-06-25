@@ -367,8 +367,8 @@ def purge_old_logs(days):
         log.warning("Purge logs echouee : " + str(e))
     return n
 
-def resolve_site_name(arg, cfg):
-    """Resout un argument CLI (alias court ou nom, casse libre) vers le nom canonique.
+def find_site_by_name(arg, cfg):
+    """Resout un argument CLI (nom de site, casse libre) vers le nom canonique.
     Renvoie le champ name exact du JSON site, ou None si introuvable."""
     if not arg:
         return None
@@ -376,9 +376,6 @@ def resolve_site_name(arg, cfg):
     for s in cfg.get("sites", []):
         if s.get("name", "").lower() == needle:
             return s["name"]
-        for a in s.get("aliases", []):
-            if a.lower() == needle:
-                return s["name"]
     return None
 
 def show_history(site_name, last=10, raw=False):
@@ -1512,7 +1509,7 @@ def main():
         print(str(deleted) + " snapshot(s) supprime(s).")
         sys.exit(0)
     if getattr(args, "history_show", None):
-        canonical = resolve_site_name(args.history_show, cfg)
+        canonical = find_site_by_name(args.history_show, cfg)
         if canonical is None:
             print("Site introuvable : " + args.history_show)
             sys.exit(1)
@@ -1535,7 +1532,7 @@ def main():
         resolved = {}
         unresolved = []
         for arg in args.site:
-            canonical = resolve_site_name(arg, cfg)
+            canonical = find_site_by_name(arg, cfg)
             if canonical is None:
                 unresolved.append(arg)
             else:
