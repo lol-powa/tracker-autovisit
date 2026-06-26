@@ -4,13 +4,14 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Autovisit</title>
+<link rel="icon" href="/favicon.png">
 <style>
-  :root {
+:root {
     --bg:     #f8f6f1;
     --border: #e2ddd6;
     --text:   #1a1a1a;
     --dim:    #6b6560;
-    --ok:     #2d7a4f;
+    --ok:     #e0892b;
     --ko:     #c0392b;
     --alert:  #b07d2a;
     --row-ko-bg: #fbeeec;
@@ -45,14 +46,10 @@
     text-transform: uppercase;
   }
 
-  #updated {
-    color: var(--dim);
-    font-size: 13px;
-  }
-
   table {
     width: 100%;
-    border-collapse: collapse;
+    border-collapse: separate;
+    border-spacing: 0;
   }
 
   /* Largeurs adaptatives : la colonne Site prend ce qu'il faut, les
@@ -73,6 +70,8 @@
 
   td {
     padding: 10px 0 10px 18px;
+    background: var(--row, transparent);
+    background-clip: padding-box;
     border-bottom: 1px solid var(--border);
     vertical-align: middle;
     text-align: right;
@@ -86,15 +85,19 @@
   td.na   { color: #c9c3bb; }
 
   tr:last-child td { border-bottom: none; }
-  tbody tr:hover td { background: #f0ece4; }
+  tbody tr:hover td { background: var(--row-hover, #e6dcc8); }
+  td:first-child, th:first-child { border-left: 5px solid transparent; }
+  td:last-child,  th:last-child  { border-right: 5px solid transparent; }
+  tbody tr:hover td:first-child { border-top-left-radius: 9px; border-bottom-left-radius: 9px; }
+  tbody tr:hover td:last-child  { border-top-right-radius: 9px; border-bottom-right-radius: 9px; }
 
   /* Ligne en echec */
   tr.row-ko td { background: var(--row-ko-bg); color: var(--ko); }
-  tr.row-ko:hover td { background: #f7e3df; }
+  tr.row-ko:hover td { background: #f3d9d3; }
 
   /* Ligne desactivee (site enabled:false) */
   tr.row-disabled td { color: #b3ada4; }
-  tr.row-disabled:hover td { background: #f0ece4; }
+  tr.row-disabled:hover td { background: var(--row-hover, #e6dcc8); }
   tr.row-disabled a { color: #b3ada4; }
   .dot-off { background: #c9c3bb; }
   .off-info { font-size: 13px; font-weight: 500; font-style: italic; }
@@ -178,239 +181,47 @@
     /* La colonne Site ne doit pas pousser Ratio hors cadre */
     td.left, th.left { white-space: normal; }
   }
+
+  /* --- En-tete personnalise (logo + nom) --- */
+  header { align-items: flex-start; }
+  .brand { display:flex; flex-direction:column; align-items:flex-start; gap:7px; cursor:pointer; }
+  #dash-logo { width:78px; height:78px; object-fit:contain; background:transparent; border:0; display:block; }
+  .brand-name { font-size:16px; font-weight:700; letter-spacing:0.22em; text-transform:uppercase; color:var(--text); }
+  .head-right { display:flex; flex-direction:column; align-items:flex-end; gap:10px; }
+  .av-tools { display:flex; gap:8px; }
+  @media (max-width:600px){ .brand-name{font-size:14px;letter-spacing:.16em;} #dash-logo{width:60px;height:60px;} }
+
 </style>
 </head>
 <body>
 <header>
-  <h1>Autovisit</h1>
-  <span id="updated">—</span>
+  <div class="brand" id="brand" title="Actualiser">
+    <img id="dash-logo" alt="" style="display:none">
+    <span class="brand-name" id="dash-title">Autovisit</span>
+  </div>
+  <div class="head-right">
+    <div class="av-tools" id="tools-slot"></div>
+  </div>
 </header>
 <div id="content">
 <table>
   <thead>
     <tr>
-      <th class="left">Site</th>
-      <th>Upload</th>
-      <th class="col-secondary">Download</th>
-      <th>Ratio</th>
-      <th class="col-secondary">Bonus / Points</th>
-      <th class="col-secondary">En Seed</th>
-      <th class="col-secondary">Autres</th>
+      <th class="left" data-col="name">Site</th>
+      <th data-col="upload">Upload</th>
+      <th class="col-secondary" data-col="download">Download</th>
+      <th data-col="ratio">Ratio</th>
+      <th class="col-secondary" data-col="bonus">Bonus / Points</th>
+      <th class="col-secondary" data-col="seed">En Seed</th>
+      <th data-col="rang">Rang</th>
+      <th class="col-secondary" data-col="autres">Autres</th>
+      <th class="col-secondary" data-col="date">Dernière connexion</th>
+      <th></th>
     </tr>
   </thead>
   <tbody id="tbody"></tbody>
 </table>
 </div>
-
-<script>
-// --- Normalisation numerique FR -------------------------------------------
-// kind : 'volume' (upload/download), 'number' (ratio), 'count' (bonus/points/seed/autres)
-// Regles : virgule decimale, espace insecable pour les milliers, unite d'origine
-// preservee (pas de conversion binaire <-> decimal).
-function normalizeNumber(raw, kind) {
-  if (raw == null) return raw;
-  let s = String(raw).trim();
-  if (s === '' || s === '—' || s === '-' || s === 'N/A' || s === '∞') return s;
-
-  const m = s.match(/^([\d.,\s\u00a0]+)(.*)$/);
-  if (!m) return s;
-  let num = m[1].trim();
-  let suffix = m[2].trim();
-  const hadSpace = /[\d.,][\s\u00a0]+\S/.test(s);
-
-  num = num.replace(/[\s\u00a0]/g, '');
-  if (!/\d/.test(num)) return s;
-
-  const hasComma = num.includes(',');
-  const hasDot = num.includes('.');
-  let intPart, decPart = '';
-
-  if (hasComma && hasDot) {
-    // Format US : le dernier separateur present est le decimal
-    const decSep = num.lastIndexOf(',') > num.lastIndexOf('.') ? ',' : '.';
-    const thouSep = decSep === ',' ? '.' : ',';
-    const parts = num.split(decSep);
-    decPart = parts.pop();
-    intPart = parts.join('').split(thouSep).join('');
-  } else if (hasComma || hasDot) {
-    const sep = hasComma ? ',' : '.';
-    const parts = num.split(sep);
-    const after = parts[parts.length - 1];
-    const multipleSep = parts.length > 2;
-    let treatAsThousands;
-    if (kind === 'volume' || kind === 'number') {
-      treatAsThousands = false;            // un volume/ratio : separateur unique = decimal
-    } else {
-      treatAsThousands = multipleSep || after.length === 3;
-    }
-    if (treatAsThousands) {
-      intPart = parts.join('');
-    } else {
-      decPart = parts.pop();
-      intPart = parts.join('');
-    }
-  } else {
-    intPart = num;
-  }
-
-  // Plafonnement a 2 decimales (arrondi) + suppression des zeros inutiles
-  if (decPart) {
-    const n = parseFloat(intPart + '.' + decPart);
-    if (!isNaN(n)) {
-      const rounded = (Math.round(n * 100) / 100).toFixed(2);
-      let [ip, dp] = rounded.split('.');
-      dp = dp.replace(/0+$/, '');
-      intPart = ip;
-      decPart = dp;
-    }
-  }
-
-  intPart = intPart.replace(/\B(?=(\d{3})+(?!\d))/g, '\u00a0');
-  let result = decPart ? intPart + ',' + decPart : intPart;
-  if (suffix) result += (hadSpace ? ' ' : '') + suffix;
-  return result;
-}
-
-// --- Icone de secours -----------------------------------------------------
-function svgPlaceholder(name) {
-  const letter = (name || '?').charAt(0).toUpperCase();
-  const svg = '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 16 16"><rect width="16" height="16" rx="3" fill="#6b6560"/><text x="8" y="12" font-family="sans-serif" font-size="10" font-weight="700" fill="white" text-anchor="middle">' + letter + '</text></svg>';
-  return 'data:image/svg+xml;base64,' + btoa(unescape(encodeURIComponent(svg)));
-}
-
-// --- Mapping colonnes -----------------------------------------------------
-const COL_UPLOAD = ['upload'];
-const COL_DOWN   = ['download'];
-const COL_RATIO  = ['ratio'];
-const COL_BONUS  = ['bonus', 'points', 'theias', 'credits', 'bonus_upload', 'gift_lvl', 'chocos', 'gold'];
-const COL_SEED   = ['seed', 'seeds', 'seeding'];
-
-function parseStats(str) {
-  if (!str) return {};
-  const result = {};
-  str.split('|').forEach(part => {
-    const idx = part.indexOf(':');
-    if (idx < 0) return;
-    const key = part.slice(0, idx).trim().toLowerCase();
-    result[key] = part.slice(idx + 1).trim();
-  });
-  return result;
-}
-
-function matchCol(key, cols) {
-  return cols.some(c => key === c || key.includes(c));
-}
-
-function cell(val, kind, secondary) {
-  const cls = (secondary ? 'col-secondary ' : '');
-  if (!val) return `<td class="${cls}na">—</td>`;
-  const out = kind ? normalizeNumber(val, kind) : val;
-  return `<td class="${cls}">${out}</td>`;
-}
-
-function fmtDate(iso) {
-  if (!iso) return null;
-  // "2026-06-17 07:40:01" -> "17/06/2026 07:40"
-  const m = iso.match(/^(\d{4})-(\d{2})-(\d{2})[ T](\d{2}):(\d{2})/);
-  if (!m) return iso;
-  return `${m[3]}/${m[2]}/${m[1]} ${m[4]}:${m[5]}`;
-}
-
-fetch('status.json?_=' + Date.now())
-  .then(r => r.json())
-  .then(data => {
-    document.getElementById('updated').textContent =
-      data.updated ? 'Mis à jour : ' + data.updated : '—';
-    const tbody = document.getElementById('tbody');
-
-    (data.sites || []).forEach(site => {
-      const tr = document.createElement('tr');
-
-      let dotClass = 'dot-ok';
-      if (site.disabled) dotClass = 'dot-off';
-      else if (!site.ok) dotClass = 'dot-ko';
-      else if (site.alert) dotClass = 'dot-alert';
-
-      const proto = site.url.startsWith('http') ? site.url : 'https://' + site.url;
-      const slug = site.name.toLowerCase();
-      const fallback = svgPlaceholder(site.name);
-
-      const mpFlag = (site.alert && !site.disabled)
-        ? `<span class="mp-flag" title="${site.alert}">MP</span>`
-        : '';
-
-      const nameCell = `<td class="left"><div class="site-name">
-        <span class="dot ${dotClass}"></span>
-        <img class="favicon" src="icones/${slug}.png"
-             onerror="this.onerror=null; this.src='icones/${slug}.ico'; this.onerror=()=>{this.src='${fallback}';};">
-        <a href="${proto}" target="_blank" rel="noopener">${site.name}</a>
-        ${mpFlag}
-      </div></td>`;
-
-      // Site desactive (enabled:false) : ni OK ni echec, simplement hors service volontaire
-      if (site.disabled) {
-        tr.className = 'row-disabled';
-        tr.innerHTML = nameCell +
-          `<td class="left off-info" colspan="6">Désactivé</td>`;
-        tbody.appendChild(tr);
-        return;
-      }
-
-      if (!site.ok) {
-        tr.className = 'row-ko';
-        const last = fmtDate(site.last_ok);
-        const info = last
-          ? `Échec — dernière connexion le ${last}`
-          : `Échec — aucune connexion réussie`;
-        tr.innerHTML = nameCell +
-          `<td class="left ko-info" colspan="6">${info}</td>`;
-        tbody.appendChild(tr);
-        return;
-      }
-
-      const stats = parseStats(site.stats);
-      let upload = null, download = null, ratio = null, bonus = null, seed = null;
-      const others = [];
-      Object.entries(stats).forEach(([k, v]) => {
-        if (matchCol(k, COL_UPLOAD) && !upload)       upload = v;
-        else if (k === 'download_total')              { /* fusionne ci-dessous */ }
-        else if (matchCol(k, COL_DOWN) && !download)  download = v;
-        else if (matchCol(k, COL_RATIO) && !ratio)    ratio = v;
-        else if (matchCol(k, COL_BONUS) && !bonus)    bonus = v;
-        else if (matchCol(k, COL_SEED) && !seed)      seed = v;
-        else if (v && v !== 'N/A')                    others.push({ k, v });
-      });
-
-      if (stats.download_total && download) {
-        download = normalizeNumber(download, 'volume') +
-                   ' (Réel ' + normalizeNumber(stats.download_total, 'volume') + ')';
-      }
-
-      // "Autres" : normalise chaque valeur en 'count', garde l'etiquette
-      const othersStr = others.length
-        ? others.map(o => o.k + ': ' + normalizeNumber(o.v, 'count')).join(' | ')
-        : null;
-
-      // download peut deja contenir " (Réel ...)" -> ne pas re-normaliser
-      const downloadCell = (stats.download_total && download)
-        ? `<td class="col-secondary">${download}</td>`
-        : cell(download, 'volume', true);
-
-      tr.innerHTML = nameCell +
-        cell(upload, 'volume', false) +
-        downloadCell +
-        cell(ratio, 'number', false) +
-        cell(bonus, 'count', true) +
-        cell(seed, 'count', true) +
-        cell(othersStr, null, true);
-
-      tbody.appendChild(tr);
-    });
-  })
-  .catch(() => {
-    document.getElementById('content').innerHTML =
-      '<div id="error">status.json introuvable</div>';
-  });
-</script>
+<script src="/addsite.js?v=80"></script>
 </body>
 </html>
