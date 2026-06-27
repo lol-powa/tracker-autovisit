@@ -1,0 +1,24 @@
+{
+    "name": "MonSitePhoenix",
+    "url": "https://phoenix.example/auth",
+    "post_url": "https://phoenix.example/auth",
+    "username_field": "",
+    "password_field": "private_key",
+    "username": "",
+    "password": "VOTRE_CLE_PRIVEE_ED25519",
+    "use_playwright": true,
+    "playwright_password_selector": "#private-key-input",
+    "playwright_submit": "button[type=submit]",
+    "playwright_post_login_wait": 8,
+    "playwright_wait_url_change": 15,
+    "playwright_fetch_verify": true,
+    "playwright_post_verify_wait": 4,
+    "verify_url": "https://phoenix.example/profile",
+    "success_keywords": ["Sign out"],
+    "stats": {
+        "upload":   "Upload:\\s*([\\d.,]+\\s+[KMGT]i?B)",
+        "download": "Download:\\s*([\\d.,]+\\s+[KMGT]i?B)",
+        "ratio":    "Ratio:\\s*([\\d.,]+)"
+    },
+    "enabled": true
+}

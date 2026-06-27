@@ -1,0 +1,25 @@
+{
+    "name": "MonSiteSPA",
+    "url": "https://spa.example/login",
+    "post_url": "https://spa.example/login",
+    "username_field": "email",
+    "password_field": "password",
+    "username": "VOTRE_USERNAME",
+    "password": "VOTRE_MOT_DE_PASSE",
+    "use_playwright": true,
+    "playwright_submit": "button[type=submit]",
+    "playwright_intercept": [
+        "https://spa.example/api/user/me",
+        "https://spa.example/api/user/stats"
+    ],
+    "playwright_stats_url": "https://spa.example/api/user/stats",
+    "stats_json": {
+        "upload":   "data.uploaded",
+        "download": "data.downloaded",
+        "ratio":    "data.ratio",
+        "seeding":  "data.seeding_count"
+    },
+    "verify_url": "https://spa.example/dashboard",
+    "success_keywords": ["logout"],
+    "enabled": true
+}

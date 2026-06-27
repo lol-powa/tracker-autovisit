@@ -1,0 +1,24 @@
+{
+    "name": "MonForumXenForo",
+    "url": "https://xenforo.example/login",
+    "post_url": "https://xenforo.example/login/login",
+    "username_field": "login",
+    "password_field": "password",
+    "username": "VOTRE_USERNAME",
+    "password": "VOTRE_MOT_DE_PASSE",
+    "csrf_field": "_xfToken",
+    "totp_secret": "VOTRE_SECRET_TOTP_BASE32",
+    "totp_url": "https://xenforo.example/login/two-step",
+    "totp_field": "code",
+    "extra_fields": {
+        "remember": "1",
+        "_xfRedirect": "https://xenforo.example/"
+    },
+    "verify_url": "https://xenforo.example/account/",
+    "success_keywords": ["Log out"],
+    "stats": {
+        "messages": "Messages\\s*</dt>\\s*<dd>\\s*([\\d.,]+)",
+        "score":    "Score de réaction\\s*</dt>\\s*<dd>\\s*([\\d.,]+)"
+    },
+    "enabled": true
+}

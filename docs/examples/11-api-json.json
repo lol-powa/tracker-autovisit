@@ -1,0 +1,27 @@
+{
+    "name": "MonSiteAPI",
+    "url": "https://api.example/",
+    "post_url": "https://api.example/api/auth/login",
+    "username_field": "identifier",
+    "password_field": "password",
+    "username": "VOTRE_USERNAME",
+    "password": "VOTRE_MOT_DE_PASSE",
+    "api_json": true,
+    "extra_headers": {
+        "Content-Type": "application/json",
+        "Accept": "application/json",
+        "Origin": "https://api.example",
+        "Referer": "https://api.example/"
+    },
+    "verify_url": "https://api.example/api/user/me",
+    "success_json_field": "user_id",
+    "stats_json": {
+        "upload":   "stats.uploaded",
+        "download": "stats.downloaded",
+        "ratio":    "stats.ratio",
+        "seeding":  "stats.seeding_count"
+    },
+    "mp_url": "https://api.example/api/messages/unread-count",
+    "mp_json_field": "unread",
+    "enabled": true
+}

@@ -1,0 +1,22 @@
+{
+    "name": "MonUNIT3D",
+    "url": "https://unit3d.example/login",
+    "post_url": "https://unit3d.example/login",
+    "username_field": "username",
+    "password_field": "password",
+    "username": "VOTRE_USERNAME",
+    "password": "VOTRE_MOT_DE_PASSE",
+    "csrf_field": "_token",
+    "extract_hidden_fields": true,
+    "extra_fields": {
+        "_username": ""
+    },
+    "verify_url": "https://unit3d.example/",
+    "success_keywords": ["logout"],
+    "stats": {
+        "upload":   "Upload:\\s*</span>\\s*<span[^>]*>([\\d.,]+\\s+[KMGT]i?B)",
+        "download": "Download:\\s*</span>\\s*<span[^>]*>([\\d.,]+\\s+[KMGT]i?B)",
+        "ratio":    "Ratio:\\s*</span>\\s*<span[^>]*>([\\d.,]+)"
+    },
+    "enabled": true
+}

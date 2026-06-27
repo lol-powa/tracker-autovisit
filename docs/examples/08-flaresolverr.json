@@ -1,0 +1,19 @@
+{
+    "name": "MonSiteCloudflare",
+    "url": "https://cloudflare.example/login.php",
+    "post_url": "https://cloudflare.example/login.php",
+    "username_field": "username",
+    "password_field": "password",
+    "username": "VOTRE_USERNAME",
+    "password": "VOTRE_MOT_DE_PASSE",
+    "cf_solver": "http://127.0.0.1:8191/v1",
+    "cf_solver_timeout": 60,
+    "verify_url": "https://cloudflare.example/index.php",
+    "success_keywords": ["logout"],
+    "stats": {
+        "upload":   "Uploaded:\\s*([\\d.,]+\\s+[KMGT]i?B)",
+        "download": "Downloaded:\\s*([\\d.,]+\\s+[KMGT]i?B)",
+        "ratio":    "Ratio:\\s*([\\d.,]+)"
+    },
+    "enabled": true
+}

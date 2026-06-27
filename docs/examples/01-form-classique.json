@@ -1,0 +1,18 @@
+{
+    "name": "MonSite",
+    "url": "https://monsite.example/login.php",
+    "post_url": "https://monsite.example/login.php",
+    "username_field": "username",
+    "password_field": "password",
+    "username": "VOTRE_USERNAME",
+    "password": "VOTRE_MOT_DE_PASSE",
+    "verify_url": "https://monsite.example/index.php",
+    "success_keywords": ["Déconnexion"],
+    "stats": {
+        "upload":   "Uploadé\\s*:\\s*([\\d.,]+\\s+\\w+)",
+        "download": "Téléchargé\\s*:\\s*([\\d.,]+\\s+\\w+)",
+        "ratio":    "Ratio\\s*:\\s*([\\d.,]+)"
+    },
+    "alert_keywords": ["nouveau message"],
+    "enabled": true
+}

@@ -1,0 +1,14 @@
+{
+    "name": "MonSiteBloque",
+    "url": "https://bloque.example/",
+    "verify_url": "https://bloque.example/profile",
+    "session_cookies_file": "/opt/tracker-autovisit/data/cookies/bloque.json",
+    "user_agent": "Mozilla/5.0 (X11; Linux x86_64; rv:140.0) Gecko/20100101 Firefox/140.0",
+    "success_keywords": ["logout"],
+    "stats": {
+        "upload":   "Uploaded:\\s*([\\d.,]+\\s+[KMGT]i?B)",
+        "download": "Downloaded:\\s*([\\d.,]+\\s+[KMGT]i?B)",
+        "ratio":    "Ratio:\\s*([\\d.,]+)"
+    },
+    "enabled": true
+}

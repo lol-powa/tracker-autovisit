@@ -1,0 +1,27 @@
+{
+    "name": "MonGazelle",
+    "url": "https://gazelle.example/login.php",
+    "post_url": "https://gazelle.example/login.php",
+    "username_field": "username",
+    "password_field": "password",
+    "username": "VOTRE_USERNAME",
+    "password": "VOTRE_MOT_DE_PASSE",
+    "totp_secret": "VOTRE_SECRET_TOTP_BASE32",
+    "totp_field": "twofa",
+    "extra_fields": {
+        "keeplogged": "1",
+        "login": "Login"
+    },
+    "verify_url": "https://gazelle.example/user.php",
+    "success_keywords": ["logout.php"],
+    "stats": {
+        "upload":   "Uploaded:.*?>([\\d.,]+\\s+[KMGT]i?B)",
+        "download": "Downloaded:.*?>([\\d.,]+\\s+[KMGT]i?B)",
+        "ratio":    "Ratio:.*?>([\\d.,∞]+)"
+    },
+    "extra_url": "https://gazelle.example/ajax.php?action=community_stats&userid=VOTRE_USERID",
+    "extra_stats": {
+        "seeding": "response.seeding"
+    },
+    "enabled": true
+}

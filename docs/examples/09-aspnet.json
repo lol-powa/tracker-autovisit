@@ -1,0 +1,19 @@
+{
+    "name": "MonSiteAspNet",
+    "url": "https://aspnet.example/Account/Login",
+    "post_url": "https://aspnet.example/Account/Login",
+    "username_field": "Username",
+    "password_field": "Password",
+    "username": "VOTRE_USERNAME",
+    "password": "VOTRE_MOT_DE_PASSE",
+    "csrf_field": "__RequestVerificationToken",
+    "extract_hidden_fields": true,
+    "verify_url": "https://aspnet.example/",
+    "success_keywords": ["Logout"],
+    "stats": {
+        "upload":   "Upload:\\s*</td>\\s*<td[^>]*>([\\d.,]+\\s+[KMGT]i?B)",
+        "download": "Download:\\s*</td>\\s*<td[^>]*>([\\d.,]+\\s+[KMGT]i?B)",
+        "ratio":    "Ratio:\\s*</td>\\s*<td[^>]*>([\\d.,]+)"
+    },
+    "enabled": true
+}

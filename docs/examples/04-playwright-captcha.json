@@ -1,0 +1,19 @@
+{
+    "name": "MonSiteCaptcha",
+    "url": "https://captcha.example/login",
+    "post_url": "https://captcha.example/login",
+    "username_field": "username",
+    "password_field": "password",
+    "username": "VOTRE_USERNAME",
+    "password": "VOTRE_MOT_DE_PASSE",
+    "use_playwright": true,
+    "playwright_submit": "button[type=submit]",
+    "verify_url": "https://captcha.example/",
+    "success_keywords": ["logout"],
+    "stats": {
+        "upload":   "Upload:\\s*([\\d.,]+\\s+[KMGT]i?B)",
+        "download": "Download:\\s*([\\d.,]+\\s+[KMGT]i?B)",
+        "ratio":    "Ratio:\\s*([\\d.,]+)"
+    },
+    "enabled": true
+}

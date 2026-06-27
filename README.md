@@ -2,23 +2,33 @@
 
 Petit script Python qui passe quotidiennement sur des sites privés histoire de ne pas se faire désactiver le compte pour cause d'inactivité — parce que constater au bout de trois mois qu'on n'a plus accès à son tracker préféré, c'est moyen.
 
-En passant, il collecte, quand c'est possible, quelques statistiques (ratio, upload, download, bonus...) et peut prévenir par mail ou ntfy en cas de message privé reçu ou de site Ko.
+En passant, il collecte, quand c'est possible, quelques statistiques (ratio, upload, download, bonus...) et peut prévenir par mail ou ntfy en cas de message privé reçu ou de site KO.
 
 Il sait causer avec :
 
-- les formulaires de login classiques (form POST)
-- les sites Laravel / UNIT3D, ASP.NET, XenForo, Symfony
-- les API JSON (avec ou sans Bearer)
-- le TOTP (2FA en ligne ou page dédiée)
-- les sites planqués derrière Cloudflare, via [FlareSolverr](https://github.com/FlareSolverr/FlareSolverr)
-- les sites avec captcha invisible, via [Playwright](https://playwright.dev/) (Firefox headless)
-- les sites dont le login est tout bonnement infranchissable, via cookies de session pré-exportés
+* les formulaires de login classiques (form POST)
+* les sites Laravel / UNIT3D, ASP.NET, XenForo, Symfony
+* les API JSON (avec ou sans Bearer)
+* le TOTP (2FA en ligne ou page dédiée)
+* les sites planqués derrière Cloudflare, via [FlareSolverr](https://github.com/FlareSolverr/FlareSolverr)
+* les sites avec captcha invisible, via [Playwright](https://playwright.dev/) (Firefox headless)
+* les sites dont le login est tout bonnement infranchissable, via
+  cookies de session pré-exportés
 
-Fork divergent de [Gusdezup/Autovisit](https://github.com/Gusdezup/Autovisit).
+Une interface web légère permet de visualiser l'état des sites, de consulter les dernières statistiques collectées, et de gérer la configuration des sites (ajout, modification, suppression, activation).
+Sans avoir à éditer les fichiers JSON à la mano et - cerise - avec quelques modèles pré-définis.
+
+## Crédits
+
+Fork divergent de [Gusdezup/Autovisit](https://github.com/Gusdezup/Autovisit), le script d'origine.
+
+L'API HTTP et l'interface web de gestion des sites ont été portées depuis le fork de The Worm's.
 
 ---
 
 ## Aperçu
+
+Vue d'ensemble de l'interface web (dashboard) :
 
 <p align="center">
   <img src="docs/img/web-preview.png" alt="Vue desktop" width="600">
@@ -28,56 +38,24 @@ Fork divergent de [Gusdezup/Autovisit](https://github.com/Gusdezup/Autovisit).
 
 ---
 
-## Prérequis
+## Installation
 
-**Debian / Debian like — installer Python et pip si pas déjà présents :**
+Sur Debian ou Debian-like, installer Python et pip, puis l'ensemble des dépendances Python en un coup :
 
 ```bash
 apt install python3 python3-pip
+pip install requests pyotp curl_cffi playwright --break-system-packages
+playwright install firefox
 ```
 
-L'installation des dépendances Python se fait ensuite en plusieurs temps selon les sites visés.
-Mais pour les feignasses et les pressés ce sera:
-```bash
-pip install requests pyotp curl_cffi playwright --break-system-packages && playwright install firefox
-```
-Et bien sûr le conteneur FlareSolverr:
-```bash
-docker run -d --name flaresolverr --restart unless-stopped \
-  -p 127.0.0.1:8191:8191 ghcr.io/flaresolverr/flaresolverr:latest
-```
-
-Sinon:
-**Le minimum** (login form classique, API JSON) :
-
-```bash
-pip install requests pyotp --break-system-packages
-```
-
-**Pour les sites planqués derrière Cloudflare ou avec une protection anti-bot un peu sévère** — ajouter `curl_cffi`, qui imite l'empreinte TLS de Firefox :
-
-```bash
-pip install curl_cffi --break-system-packages
-```
-
-**Pour les sites avec captcha invisible** (hCaptcha, Cloudflare Turnstile et autres joyeusetés) — ajouter Playwright et son Firefox headless :
-
-```bash
-pip install playwright --break-system-packages && playwright install firefox
-```
-
-**Pour les sites avec un vrai challenge Cloudflare** que Playwright ne franchit pas tout seul — installer [FlareSolverr](https://github.com/FlareSolverr/FlareSolverr) à côté, idéalement dans un conteneur Docker, et le laisser tourner en permanence :
+Ajouter le conteneur FlareSolverr (une seule instance suffit pour tous les sites concernés) :
 
 ```bash
 docker run -d --name flaresolverr --restart unless-stopped \
   -p 127.0.0.1:8191:8191 ghcr.io/flaresolverr/flaresolverr:latest
 ```
 
-Une instance suffit pour tous les sites concernés.
-
----
-
-## Installation
+Cloner le dépôt et préparer l'arborescence de données :
 
 ```bash
 git clone https://github.com/lol-powa/tracker-autovisit.git /opt/tracker-autovisit
@@ -85,64 +63,36 @@ cd /opt/tracker-autovisit
 mkdir -p /opt/tracker-autovisit/data/{sites.d,cookies,logs}
 ```
 
-Pour les dépendances Python, voir la section [Prérequis](#prérequis) plus haut.
-
-Ensuite, créer un fichier par site dans `data/sites.d/` (voir les exemples de configuration plus bas) et c'est parti :
+Installer le wrapper `autovisit` pour pouvoir lancer la commande depuis n'importe où :
 
 ```bash
-/opt/tracker-autovisit/autovisit.py --site MonSite --verbose
+install -m 755 contrib/bin/autovisit /usr/local/bin/autovisit
 ```
-
-### Notifications (optionnel)
-
-Au premier lancement, copier le template puis l'éditer :
-```bash
-cp data/config.example.json data/config.json
-```
-
-Pour activer les notifications mail et/ou ntfy, éditer `data/config.json` :
-
-```json
-{
-    "mail": {
-        "enabled": true,
-        "to": "autovisit@example.org"
-    },
-    "ntfy": {
-        "enabled": true,
-        "url": "https://ntfy.example.org",
-        "topic": "autovisit",
-        "auth_user": "autovisit",
-        "auth_pass": "CHANGE_ME",
-        "priority": 4,
-        "tags": "warning"
-    }
-}
-```
-
-Mail via msmtp (à configurer côté système, root), ntfy via HTTP POST avec auth basique.
-
-Le fichier `data/config.json` est requis pour lancer le script ; sans lui, le script s'arrête avec une erreur explicite. Les sections `mail` et `ntfy` peuvent être désactivées (`enabled: false`), auquel cas seul le journal local est écrit.
 
 ---
 
 ## Configuration
 
-La configuration globale (mail, ntfy) est dans `data/config.json`.
-Chaque site a son propre fichier dans `data/sites.d/<slug>.json` (slug = nom du site en minuscules).
+La configuration globale (mail, ntfy, rétention) est dans `data/config.json`. Chaque site a son propre fichier dans `data/sites.d/<slug>.json` (slug = nom du site en minuscules).
 
-### Structure générale
+Au premier lancement, copier le template puis l'éditer :
 
-`data/config.json` (configuration globale) :
+```bash
+cp data/config.example.json data/config.json
+```
+
+Le fichier `data/config.json` est requis pour lancer le script ; sans lui, le script s'arrête avec une erreur explicite.
+
+### data/config.json (configuration globale)
 
 ```json
 {
     "mail": {
-        "enabled": true,
+        "enabled": false,
         "to": "autovisit@example.org"
     },
     "ntfy": {
-        "enabled": true,
+        "enabled": false,
         "url": "https://ntfy.example.org",
         "topic": "autovisit",
         "auth_user": "autovisit",
@@ -157,26 +107,31 @@ Chaque site a son propre fichier dans `data/sites.d/<slug>.json` (slug = nom du 
 }
 ```
 
-Le bloc `retention` est optionnel. Si présent, le script purge silencieusement au démarrage les snapshots SQLite et les fichiers `visit_YYYY-MM.log` plus anciens que les durées indiquées. Mettre `0` (ou omettre la clé) désactive la purge correspondante.
+Mail via msmtp (à configurer côté système, root), ntfy via HTTP POST avec authentification basique. Les sections `mail` et `ntfy` peuvent être désactivées (`enabled: false`), auquel cas seul le journal local est écrit.
 
-`data/sites.d/<slug>.json` (un fichier par site, objet site brut) :
+Le bloc `retention` est optionnel (mais fortement conseillé...). Si présent, le script purge silencieusement au démarrage les snapshots SQLite et les fichiers `visit_YYYY-MM.log` plus anciens que les durées indiquées. Mettre `0` (ou omettre la clé) désactive la purge correspondante.
+
+### data/sites.d/<slug>.json (un fichier par site)
 
 ```json
 {
     "name": "MonSite",
-    "url": "https://monsite.example/",
+    "url": "https://monsite.example/login.php",
     "post_url": "https://monsite.example/login.php",
     "username_field": "username",
     "password_field": "password",
     "username": "...",
     "password": "...",
     "verify_url": "https://monsite.example/",
-    "success_keywords": ["..."],
+    "success_keywords": ["Déconnexion"],
+    "stats": {
+        "upload":   "Uploadé\\s*:\\s*([\\d.,]+\\s+\\w+)",
+        "download": "Téléchargé\\s*:\\s*([\\d.,]+\\s+\\w+)",
+        "ratio":    "Ratio\\s*:\\s*([\\d.,]+)"
+    },
     "enabled": true
 }
 ```
-
-> Pour les configurations personnelles de sites, vous pouvez utiliser un fichier `SITES.md` local (gitignored) qui permettra de garder vos modèles, champs et observations site par site sans rien commiter.
 
 ### Champs disponibles par site
 
@@ -190,7 +145,6 @@ Le bloc `retention` est optionnel. Si présent, le script purge silencieusement 
 | `username` | ✅ | Identifiant |
 | `password` | ✅ | Mot de passe |
 | `enabled` | | `true` par défaut. `false` pour désactiver |
-| `aliases` | | Noms alternatifs pour `--site` |
 | `csrf_field` | | Nom du champ CSRF si non standard (ex: `__RequestVerificationToken`, `_csrf_token`) |
 | `extract_hidden_fields` | | `true` pour extraire automatiquement les champs hidden anti-bot (Laravel/UNIT3D) |
 | `extra_fields` | | Champs supplémentaires à inclure dans le POST (ex: honeypot `{"_username": ""}`) |
@@ -203,7 +157,7 @@ Le bloc `retention` est optionnel. Si présent, le script purge silencieusement 
 | `alert_keywords` | | Mots-clés déclenchant une alerte MP (substring exact du HTML) |
 | `alert_stat` | | Nom d'une clé de `stats` à surveiller : si sa valeur numérique est > 0, déclenche une alerte MP. Le compteur est exclu de l'affichage des stats. |
 | `alert_label` | | Libellé de l'alerte MP dans les logs et notifications (défaut : le mot-clé ou la clé surveillée) |
-| `stats` | | Dict d'expressions régulières pour extraire les statistiques depuis le HTML |
+| `stats` | | Dict d'expressions régulières pour extraire les statistiques depuis le HTML. Valeur : chaîne (regex simple) ou objet `{"pattern": ..., "unit": "auto"}` pour forcer la conversion d'unité |
 | `stats_json` | | Dict de chemins de clés pour extraire les statistiques depuis une réponse JSON |
 | `extra_url` | | URL complémentaire interrogée après `verify_url` pour récupérer des stats absentes de la page principale (FL tokens, seeding count, bonus...). Ses résultats sont fusionnés dans l'unique ligne `Stats --` du journal avant historisation |
 | `extra_stats` | | Dict d'expressions à appliquer sur `extra_url`. Format identique à `stats` (regex polymorphe) si `extra_format: "html"`, ou à `stats_json` (chemins pointés) si `extra_format: "json"` |
@@ -249,9 +203,9 @@ Pour un champ au nom non standard, le déclarer via `"csrf_field": "NOM_DU_CHAMP
 
 ## Protection anti-bot (champs hidden)
 
-Certains sites (Laravel, UNIT3D) injectent des champs "hidden" (cachés) aléatoires dans le formulaire pour piéger les bots. L'option `"extract_hidden_fields": true` les inclut automatiquement dans le POST.
+Certains sites (Laravel, UNIT3D) injectent des champs `hidden` aléatoires dans le formulaire de login pour piéger les bots. L'option `"extract_hidden_fields": true` les inclut automatiquement dans le POST.
 
-Si le site utilise en plus un champ honeypot de type `text` (non hidden), il faut l'ajouter à la main :
+Si le site utilise en plus un champ honeypot de type `text` (non hidden), il faut l'ajouter manuellement via `extra_fields` :
 
 ```json
 "extra_fields": {"_username": ""}
@@ -278,7 +232,7 @@ Les expressions `stats` utilisent `re.DOTALL | re.IGNORECASE`. Les clés `stats_
 
 ### Stats complémentaires (`extra_url`)
 
-Certaines stats vivent ailleurs que sur la page principale : FL tokens sur une page d'historique, compteur de torrents en seed sur une page "torrents actifs", bonus cumulé sur une page profil. C'est ce que `extra_url` permet d'aller chercher, avec `extra_stats` pour les expressions et `extra_format` pour piloter le format (`"json"` par défaut, ou `"html"`).
+Certaines stats vivent sur une page distincte du `verify_url` : FL tokens, compteur de seeding, bonus cumulé. C'est ce que `extra_url` permet d'aller chercher, avec `extra_stats` pour les expressions et `extra_format` pour piloter le format (`"json"` par défaut, ou `"html"`).
 
 Exemple HTML — cumul de seeding sur une page séparée :
 
@@ -306,15 +260,7 @@ Exemple JSON — FL tokens via API :
 }
 ```
 
-Stats principales et complémentaires sont fusionnées dans une seule ligne `Stats --` (et un seul snapshot BDD) à chaque exécution.
-
-### Compatibilité par chemin de visite
-
-| Fonction | `extra_url` supporté |
-|---|---|
-| `visit_site()` (auth username/password classique) | ✅ |
-| `visit_site_session()` (cookies pré-existants ou FlareSolverr) | ✅ |
-| `visit_site_playwright()` (Firefox headless, branche intercept) | ✅ |
+Stats principales et complémentaires sont fusionnées dans une seule ligne `Stats --` (et un seul snapshot BDD) à chaque exécution. `extra_url` est supporté sur les trois chemins de visite : auth classique (`visit_site`), cookies de session ou FlareSolverr (`visit_site_session`), et Playwright (`visit_site_playwright`).
 
 Côté Playwright, l'appel `extra_url` est effectué via `page.request.get()` tant que le navigateur est ouvert, ce qui réutilise cookies et fingerprint navigateur — utile sur les sites à fingerprint TLS strict où une session `requests` externe se ferait bloquer. Pour les SPA dont les stats ne sont pas exposées sur un endpoint JSON tiers, passer par `playwright_intercept` + `playwright_stats_url` (interception XHR/fetch).
 
@@ -322,307 +268,26 @@ Côté Playwright, l'appel `extra_url` est effectué via `page.request.get()` ta
 
 ## Exemples de configuration
 
-### Site classique (form POST)
+Pour créer un nouveau site, l'interface web propose 35 trackers préconfigurés et 7 modèles génériques (form POST classique, Gazelle, UNIT3D, ASP.NET, XenForo, Symfony, API JSON). Un site personnalisé s'ajoute en quelques clics, sans éditer le JSON à la main.
 
-```json
-{
-  "name": "MonSite",
-  "url": "https://monsite.com/login",
-  "post_url": "https://monsite.com/login",
-  "username_field": "username",
-  "password_field": "password",
-  "success_keywords": ["Déconnexion"],
-  "alert_keywords": ["new_message"],
-  "username": "monpseudo",
-  "password": "monmotdepasse",
-  "enabled": true
-}
-```
+Pour les cas qui nécessitent une configuration plus poussée, douze exemples annotés sont fournis dans [`docs/examples/`](docs/examples/) :
 
-### Site Gazelle avec TOTP inline
+| # | Cas | Fichier |
+|---|---|---|
+| 01 | Site form POST classique avec stats | [`01-form-classique.json`](docs/examples/01-form-classique.json) |
+| 02 | Site Gazelle avec TOTP inline | [`02-gazelle-totp-inline.json`](docs/examples/02-gazelle-totp-inline.json) |
+| 03 | Site Laravel/UNIT3D avec protection anti-bot | [`03-unit3d-anti-bot.json`](docs/examples/03-unit3d-anti-bot.json) |
+| 04 | Site UNIT3D avec captcha invisible (Playwright) | [`04-playwright-captcha.json`](docs/examples/04-playwright-captcha.json) |
+| 05 | Site SPA avec interception API (Playwright) | [`05-playwright-spa-intercept.json`](docs/examples/05-playwright-spa-intercept.json) |
+| 06 | Site Phoenix LiveView / authentification par clé privée | [`06-playwright-phoenix-cle-privee.json`](docs/examples/06-playwright-phoenix-cle-privee.json) |
+| 07 | Site avec login bloqué (cookies de session) | [`07-cookies-session.json`](docs/examples/07-cookies-session.json) |
+| 08 | Contournement Cloudflare automatisé (FlareSolverr) | [`08-flaresolverr.json`](docs/examples/08-flaresolverr.json) |
+| 09 | Site ASP.NET | [`09-aspnet.json`](docs/examples/09-aspnet.json) |
+| 10 | Site XenForo avec TOTP page dédiée | [`10-xenforo-totp-dedie.json`](docs/examples/10-xenforo-totp-dedie.json) |
+| 11 | Site API JSON avec stats JSON et MP via URL dédiée | [`11-api-json.json`](docs/examples/11-api-json.json) |
+| 12 | Login AJAX (réponse vide, vérification sur autre page) | [`12-login-ajax.json`](docs/examples/12-login-ajax.json) |
 
-```json
-{
-  "name": "MonSiteGazelle",
-  "url": "https://monsite.com/login.php",
-  "post_url": "https://monsite.com/login.php",
-  "username_field": "username",
-  "password_field": "password",
-  "totp_secret": "SECRET_BASE32",
-  "totp_field": "mfa",
-  "success_url_contains": "index.php",
-  "success_keywords": ["Déconnexion"],
-  "alert_keywords": ["new_message"],
-  "stats": {
-    "upload": "class=\"stat tooltip up\"[^>]*>([^<]+)</span>",
-    "download": "class=\"stat tooltip dl\"[^>]*>([^<]+)</span>",
-    "ratio": "class=\"tooltip r\\d+\"[^>]*>([^<]+)</span>"
-  },
-  "username": "monpseudo",
-  "password": "monmotdepasse",
-  "enabled": true
-}
-```
-
-### Site Laravel/UNIT3D avec protection anti-bot
-
-```json
-{
-  "name": "MonSiteUNIT3D",
-  "url": "https://monsite.com/login",
-  "post_url": "https://monsite.com/login",
-  "username_field": "username",
-  "password_field": "password",
-  "csrf_field": "_token",
-  "extract_hidden_fields": true,
-  "extra_fields": {"_username": ""},
-  "verify_url": "https://monsite.com/",
-  "success_keywords": ["Déconnexion"],
-  "alert_keywords": ["viewBox=\"0 0 100 100\""],
-  "use_curl_cffi": true,
-  "username": "monpseudo",
-  "password": "monmotdepasse",
-  "enabled": true
-}
-```
-
-### Site UNIT3D avec captcha invisible (Playwright)
-
-```json
-{
-  "name": "MonSiteUNIT3D",
-  "url": "https://monsite.com/login",
-  "post_url": "https://monsite.com/login",
-  "username_field": "username",
-  "password_field": "password",
-  "use_playwright": true,
-  "playwright_submit": "button.auth-form__primary-button",
-  "totp_secret": "SECRET_BASE32",
-  "totp_field": "code",
-  "verify_url": "https://monsite.com/",
-  "success_keywords": ["monpseudo"],
-  "stats": {
-    "upload": "ratio-bar__uploaded[^>]*>\\s*<a[^>]*>\\s*<i[^>]+></i>\\s*([^<]+)",
-    "ratio": "ratio-bar__ratio[^>]*>\\s*<a[^>]*>\\s*<i[^>]+></i>\\s*([^<]+)"
-  },
-  "username": "monpseudo",
-  "password": "monmotdepasse",
-  "enabled": true
-}
-```
-
-### Site SPA avec interception API (Playwright)
-
-Pour les sites où stats et MP sont chargés dynamiquement par des appels API (Vue, React, Svelte et compagnie), Playwright peut écouter les réponses réseau pendant la navigation et en tirer les données — ça évite de bricoler du parsing HTML rendu, qui dans ce genre de SPA est de toute façon souvent à moitié vide au chargement.
-
-```json
-{
-  "name": "MonTrackerSPA",
-  "url": "https://monsite.com/login",
-  "username_field": "identifier",
-  "password_field": "password",
-  "use_playwright": true,
-  "playwright_intercept": [
-    "https://monsite.com/api/me",
-    "https://monsite.com/api/me/notifications/unread"
-  ],
-  "playwright_stats_url": "https://monsite.com/api/me",
-  "stats_json": {
-    "upload": "uploaded",
-    "download": "downloaded",
-    "ratio": "ratio"
-  },
-  "mp_url": "https://monsite.com/api/me/notifications/unread",
-  "mp_json_field": "total",
-  "username": "monpseudo",
-  "password": "monmotdepasse",
-  "enabled": true
-}
-```
-
-> `playwright_intercept` liste les URLs à intercepter. `playwright_stats_url` indique laquelle contient les stats (`stats_json` lui est appliqué). `mp_url` + `mp_json_field` fonctionnent de la même façon que pour les sites non-Playwright.
-
-### Site Phoenix LiveView / authentification par clé privée (Playwright)
-
-Pour les sites Phoenix LiveView avec login par clé privée (challenge/signature) et PoW JavaScript de type Anubis. Login en WebSocket, session collée au fingerprint navigateur — autant dire que sortir de Playwright pour le GET de vérification ne marchera jamais. D'où `playwright_fetch_verify: true`, qui garde tout le pipeline dans le même navigateur.
-
-```json
-{
-  "name": "MonSitePhoenix",
-  "url": "https://monsite.com/sign-in",
-  "username_field": "",
-  "password_field": "password",
-  "use_playwright": true,
-  "playwright_password_selector": "#private-key-input",
-  "playwright_wait_url_change": 30,
-  "playwright_post_login_wait": 5,
-  "playwright_fetch_verify": true,
-  "playwright_post_verify_wait": 5,
-  "verify_url": "https://monsite.com/activity",
-  "success_keywords": ["monpseudo"],
-  "stats": {
-    "upload": "Upload total</div>\\s*<div[^>]*>([^<]+)</div>",
-    "download": "Download total</div>\\s*<div[^>]*>([^<]+)</div>"
-  },
-  "username": "",
-  "password": "MA_CLE_PRIVEE",
-  "enabled": true
-}
-```
-
-> `playwright_password_selector` active le mode password-only et cible un champ par sélecteur CSS plutôt que par `name`. `playwright_wait_url_change` attend que l'URL change après le submit (plus fiable qu'un délai fixe pour les WebSockets Phoenix LiveView). `playwright_fetch_verify` fait le GET de vérification depuis le même navigateur Playwright pour préserver le fingerprint requis par l'anti-bot.
-
-### Site avec login bloqué (cookies de session)
-
-Pour les sites dont le login est totalement infranchissable côté script (Cloudflare `cf-mitigated`, hCaptcha cliquable, CAPTCHA visuel et autres réjouissances), on saute carrément l'étape login et on réutilise les cookies d'une session ouverte à la main dans un navigateur.
-
-```json
-{
-  "name": "MonSiteBloque",
-  "aliases": ["bloque"],
-  "session_cookies_file": "/chemin/vers/cookies/monsite.json",
-  "user_agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/149.0.0.0 Safari/537.36",
-  "verify_url": "https://monsite.com/",
-  "success_keywords": ["Déconnexion"],
-  "stats": {
-    "upload": "Up:\\s*<span class=\"stat\">([^<]+)</span>"
-  },
-  "username": "",
-  "password": "",
-  "enabled": true
-}
-```
-
-Le fichier `cookies/monsite.json` doit contenir un tableau d'objets cookies au format Cookie-Editor :
-
-```json
-[
-  {"name": "PHPSESSID", "value": "...", "domain": "monsite.com", "path": "/"},
-  {"name": "cf_clearance", "value": "...", "domain": ".monsite.com", "path": "/"}
-]
-```
-
-> **Récupération des cookies** : se connecter manuellement au site dans un navigateur, ouvrir les DevTools (F12) → Application → Cookies, copier ceux qui comptent (au minimum le cookie de session, plus `cf_clearance` si présent). L'extension Cookie-Editor fait ça en deux clics et donne directement un export JSON propre.
->
-> **À garder en tête** :
-> - Les cookies expirent. Selon le site, ça tient de quelques jours à plusieurs mois. Le log `cookies expires ?` est le signal pour regénérer le fichier.
-> - Le cookie `cf_clearance` (Cloudflare) est lié à l'**IP** ET au **User-Agent**. Si les cookies viennent d'un PC perso, la seedbox qui exécute le script doit sortir sur la même IP publique (ou tunnel SSH/SOCKS), et le `user_agent` de la config doit reprendre exactement celui du navigateur d'origine.
-> - Protéger le fichier : `chmod 600 cookies/monsite.json`
-
-**Mode hybride (Cloudflare uniquement)** : si le fichier cookies contient juste `cf_clearance` et que la config a bien `username` / `password` / `post_url`, le script fait le login classique derrière le cookie Cloudflare. C'est bien plus robuste que de stocker un cookie de session, qui peut être de très courte durée.
-
-### Contournement Cloudflare automatisé (FlareSolverr)
-
-Plutôt que de coller un `cf_clearance` à la main (qui expire vite, parfois en moins de 24 h), la clé `cf_solver` délègue la résolution du challenge à une instance FlareSolverr :
-
-```json
-{
-    "name": "MonSite",
-    "cf_solver": "http://127.0.0.1:8191/v1",
-    "verify_url": "https://monsite.com/index.php",
-    "url": "https://monsite.com/login.php",
-    "post_url": "https://monsite.com/login.php",
-    "username_field": "username",
-    "password_field": "password",
-    "username": "...",
-    "password": "...",
-    "success_keywords": ["logout.php"]
-}
-```
-
-À chaque visite, le script envoie l'URL cible à FlareSolverr, qui renvoie le `cf_clearance` valide **et** le User-Agent utilisé pour l'obtenir. Le script reprend ce User-Agent pour la session (le `cf_clearance` y est lié), donc l'`user_agent` du fichier de config n'est plus nécessaire. Le login classique s'enchaîne derrière le cookie Cloudflare, comme en mode hybride.
-
-Comme le cookie est régénéré à chaque exécution, plus rien à coller ni à renouveler à la main. Seule contrainte qui persiste : FlareSolverr doit sortir sur Internet par la même IP publique que le script (cf. la note plus haut sur `cf_clearance` lié à l'IP).
-
-Le délai accordé à FlareSolverr pour résoudre le challenge se règle via `cf_solver_timeout` (en secondes, défaut : `60`). Augmenter cette valeur si les logs montrent des timeouts FlareSolverr ; la diminuer n'apporte rien (le solver rend la main dès qu'il a fini).
-
-**Prérequis** : une instance FlareSolverr accessible depuis la machine où tourne le script. Le plus simple est un conteneur Docker dédié :
-```bash
-docker run -d --name flaresolverr --restart unless-stopped \
-  -p 127.0.0.1:8191:8191 ghcr.io/flaresolverr/flaresolverr:latest
-```
-
-### Site ASP.NET
-
-```json
-{
-  "name": "MonSiteASP",
-  "url": "https://monsite.com/login",
-  "post_url": "https://monsite.com/login",
-  "username_field": "Username",
-  "password_field": "Password",
-  "csrf_field": "__RequestVerificationToken",
-  "success_keywords": ["Déconnexion"],
-  "username": "monpseudo",
-  "password": "monmotdepasse",
-  "enabled": true
-}
-```
-
-### Site XenForo avec TOTP page dédiée
-
-```json
-{
-  "name": "MonSiteXenForo",
-  "url": "https://monsite.com/login",
-  "post_url": "https://monsite.com/login",
-  "username_field": "login",
-  "password_field": "password",
-  "csrf_field": "_xfToken",
-  "extract_hidden_fields": true,
-  "totp_secret": "SECRET_BASE32",
-  "totp_field": "code",
-  "totp_url": "https://monsite.com/login/two-step",
-  "success_keywords": ["Déconnexion"],
-  "username": "monpseudo",
-  "password": "monmotdepasse",
-  "enabled": true
-}
-```
-
-### Site API JSON avec stats JSON et MP via URL dédiée
-
-```json
-{
-  "name": "MonTrackerAPI",
-  "url": "https://monsite.com/login",
-  "pre_visit_urls": ["https://monsite.com/api/settings/public"],
-  "post_url": "https://monsite.com/api/auth/login",
-  "username_field": "username",
-  "password_field": "password",
-  "api_json": true,
-  "success_json_field": "success",
-  "verify_url": "https://monsite.com/api/auth/me",
-  "stats_json": {
-    "upload": "user.uploaded",
-    "download": "user.downloaded",
-    "ratio": "user.ratio"
-  },
-  "mp_url": "https://monsite.com/api/messages/unread-count",
-  "mp_json_field": "total",
-  "username": "monpseudo",
-  "password": "monmotdepasse",
-  "enabled": true
-}
-```
-
-### Login AJAX (réponse vide, vérification sur une autre page)
-
-```json
-{
-  "name": "MonForum",
-  "url": "https://monforum.com/",
-  "post_url": "https://monforum.com/includes/login.php?action=login",
-  "username_field": "pseudo",
-  "password_field": "password",
-  "extra_headers": {"X-Requested-With": "XMLHttpRequest"},
-  "verify_url": "https://monforum.com/",
-  "success_keywords": ["Mon profil"],
-  "username": "monpseudo",
-  "password": "monmotdepasse",
-  "enabled": true
-}
-```
+Chaque exemple est décrit en détail dans [`docs/examples/README.md`](docs/examples/README.md) (cas d'usage, points clés, pièges à éviter).
 
 ---
 
@@ -644,9 +309,8 @@ autovisit --verbose
 # Exporte un status.json après l'exécution (utilisé par la page web)
 autovisit --json-output
 
-# Un seul site (par nom ou alias)
+# Un seul site
 autovisit --site MonSite
-autovisit --site s1
 
 # Plusieurs sites
 autovisit --site MonSite MonSite2
@@ -658,14 +322,16 @@ autovisit --json-output --verbose
 
 Les notifications mail et ntfy sont activées par défaut si `data/config.json` est présent. Sans `--silent` ni `--verbose`, c'est ntfy qui prévient seulement s'il y a un échec ou un MP non lu — pas de bruit quand tout va bien.
 
+`autovisit` est un petit wrapper shell installé en `/usr/local/bin/` qui appelle `python3 /opt/tracker-autovisit/autovisit.py` ; la commande peut donc être lancée depuis n'importe où, sans `cd` préalable.
+
 ---
 
 ## Planification Crontab
 
-Une fois par jour suffit largement. À heure creuse, idéalement.
+Une fois par jour suffit largement (Ne faites pas les bourrins s'il vous plaît!). À heure creuse, idéalement.
 
 ```bash
-0 6 * * * /opt/tracker-autovisit/autovisit.py --json-output >> /opt/tracker-autovisit/data/logs/cron.log 2>&1
+0 6 * * * /usr/local/bin/autovisit --json-output >> /opt/tracker-autovisit/data/logs/cron.log 2>&1
 ```
 
 `--json-output` génère le `status.json` qui alimente la page web, et la matrice de notifications fait le reste : ntfy prévient en cas d'échec ou de MP non lu, le mail reste silencieux sauf en mode `--verbose`.
@@ -674,38 +340,82 @@ Une fois par jour suffit largement. À heure creuse, idéalement.
 
 ## Interface web
 
-La page `web/index.html` affiche les stats de tous les sites en lisant `data/status.json` (généré par `autovisit --json-output`).
+Une interface web légère (`/var/www/autovisit/`) propose deux usages :
 
-### Déploiement
+- **Tableau de bord** : visualisation en temps réel des stats de tous les sites, état (OK / KO / désactivé), date de dernière visite, MP non lus.
+- **Gestion des sites** : ajout, modification, suppression, activation/désactivation, sans éditer les JSON à la main. 35 trackers préconfigurés et 7 modèles génériques sont disponibles depuis le bouton « Ajouter un site ».
+
+L'interface comporte un frontend statique (`/var/www/autovisit/`) et un backend HTTP léger (`web-api.py`) qui écoute en local sur `127.0.0.1:8099`. Nginx fait le pont entre les deux et expose `autovisit.example.org` à l'extérieur, derrière `auth_basic` ou un autre filtrage d'accès.
+
+### Déploiement du frontend
 
 ```bash
-mkdir -p /var/www/autovisit
+mkdir -p /var/www/autovisit/icones
 cp web/index.html /var/www/autovisit/
+cp web/addsite.js /var/www/autovisit/
 cp web/icones/* /var/www/autovisit/icones/
 chown -R www-data:www-data /var/www/autovisit
 ```
 
-`status.json` ne va pas dans la racine web : il reste dans `data/` et est exposé via un alias Nginx avec restriction d'accès. Inutile que les mots de passe en clair des autres fichiers `data/` se retrouvent à un `../` près.
+### Déploiement du backend
+
+```bash
+chmod 700 web-api.py
+install -m 644 contrib/systemd/tracker-autovisit-web.service /etc/systemd/system/
+systemctl daemon-reload
+systemctl enable --now tracker-autovisit-web
+systemctl status tracker-autovisit-web --no-pager
+```
+
+Le service est lancé en root (lecture/écriture sur `data/sites.d/`). Il écoute uniquement sur `127.0.0.1:8099`, jamais directement exposé : Nginx est le seul point d'entrée.
+
+L'authentification interne du backend est désactivée par défaut (`AUTH_ENABLED = False` en tête de `web-api.py`). La sécurité repose sur `auth_basic` Nginx et le filtrage CIDR. Pour réactiver l'authentification interne (PBKDF2 + TOTP optionnel), passer le flag à `True`, redémarrer le service, et créer le mot de passe initial via la route `/auth/password` du backend.
 
 ### Configuration Nginx
 
-Le bloc à ajouter dans le `server { listen 443 ssl; ... }` :
+Le vhost doit proxifier `/status.json`, les routes d'authentification et les routes CRUD vers le backend. À ajouter dans le `server { listen 443 ssl; ... }` :
 
 ```nginx
+# /status.json : regenere a la volee par le backend
 location = /status.json {
-    alias /opt/tracker-autovisit/data/status.json;
-    satisfy any;
-    allow x.x.x.0/24;
-    deny all;
+    proxy_pass http://127.0.0.1:8099/status;
+    proxy_set_header Host $host;
+    proxy_set_header X-Real-IP $remote_addr;
+    proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+    proxy_set_header X-Forwarded-Proto $scheme;
     add_header Cache-Control "no-store, no-cache, must-revalidate";
+}
+
+# Routes d'authentification du backend (inertes si AUTH_ENABLED=False)
+location ~ ^/auth/ {
+    proxy_pass http://127.0.0.1:8099;
+    proxy_set_header Host $host;
+    proxy_set_header X-Real-IP $remote_addr;
+    proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+    proxy_set_header X-Forwarded-Proto $scheme;
+    proxy_set_header Cookie $http_cookie;
+}
+
+# Routes CRUD du dashboard
+location ~ ^/(test|confirm|cancel|delete|toggle|sites|site|settings|favicon|logosync|inspect|logs|favsync|refreshall|refreshstate|revisit|revisitstate|sitestats|siterestore)$ {
+    proxy_pass http://127.0.0.1:8099;
+    proxy_set_header Host $host;
+    proxy_set_header X-Real-IP $remote_addr;
+    proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+    proxy_set_header X-Forwarded-Proto $scheme;
+    proxy_set_header Cookie $http_cookie;
+    client_max_body_size 4m;
+    proxy_connect_timeout 20s;
+    proxy_send_timeout 200s;
+    proxy_read_timeout 200s;
 }
 ```
 
-`satisfy any` combiné à `allow`/`deny` permet l'accès direct depuis le LAN (`x.x.x.0/24`) ou via `auth_basic` depuis l'extérieur. Adapter le CIDR au réseau local.
+Combiné à un `auth_basic` au niveau `server {}` (avec bypass `satisfy any` + `allow x.x.x.0/24` pour le LAN si souhaité), l'interface est accessible depuis le LAN sans authentification et depuis l'extérieur avec authentification HTTP. Adapter le CIDR au réseau local.
 
 ### Permissions
 
-`status.json` doit être lisible par `www-data` (par défaut, `umask 022` produit `-rw-r--r--`, ce qui convient). Le dossier `data/` doit être traversable (`o+x`).
+Les fichiers statiques de `/var/www/autovisit/` doivent appartenir à `www-data:www-data` (le `chown -R` ci-dessus s'en charge). Le backend tourne en root et n'a aucune contrainte de permissions sur `data/`.
 
 ---
 
@@ -728,7 +438,6 @@ Côté notification, ntfy reçoit une ligne compacte du genre `MP: NomDuSite1, N
 - Les fichiers `data/config.json` et `data/sites.d/*.json` contiennent les mots de passe et secrets TOTP en clair. À protéger d'urgence : `chmod 600 data/config.json data/sites.d/*.json`
 - Ne jamais partager le contenu de `data/` (au cas où ce ne soit pas évident)
 - Les fichiers de cookies de session (`session_cookies_file`) méritent le même traitement : `chmod 600 data/cookies/*.json`
-- `SITES.md` (notes personnelles de configuration) est dans le `.gitignore` — éviter de le sortir de là par mégarde
 
 ---
 
@@ -740,13 +449,15 @@ autovisit --list
 
 Affiche un récapitulatif de tous les sites présents dans `data/sites.d/` :
 
-| Colonne | Description |
-|---|---|
-| Nom | Nom du site |
-| Actif | Site activé ou non |
-| URL | Domaine |
-| TOTP | Secret TOTP configuré |
-| 2FA | Type de 2FA (inline, page, api_json) |
-| Stats | Expressions `stats` ou `stats_json` configurées |
-| MP | `alert_keywords`, `alert_stat` ou `mp_url` configurés |
-| Curl | `use_curl_cffi` activé |
+| Colonne | Valeurs | Description |
+|---|---|---|
+| Nom | — | Nom du site (clé `name`) |
+| Actif | `✓` / `✗` | Site activé ou non |
+| URL | — | Domaine du site, tronqué à 30 caractères |
+| Chemin | `visit` / `session` / `playwright` | Fonction de visite utilisée : auth classique, cookies de session ou FlareSolverr, Firefox headless |
+| TOTP | `✓` / `-` | Secret TOTP configuré |
+| 2FA | `inline` / `page` / `api_json` / `-` | Mode de second facteur : posté avec le login, sur page dédiée, ou via API JSON |
+| Stats | `✓` / `-` | Expressions `stats` ou `stats_json` configurées |
+| MP | `api` / `stat` / `kw` / `-` | Mécanisme de détection des MP non lus : `mp_url`, `alert_stat`, `alert_keywords` |
+| CF | `✓` / `-` | FlareSolverr configuré (`cf_solver`) |
+| Dernier OK | `MM-DD HH:MM` | Date de la dernière connexion réussie d'après `history.db` |
