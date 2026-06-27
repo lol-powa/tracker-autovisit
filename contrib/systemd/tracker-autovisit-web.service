@@ -1,0 +1,28 @@
+[Unit]
+Description=tracker-autovisit web-api (dashboard backend)
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=simple
+User=root
+Group=root
+WorkingDirectory=/opt/tracker-autovisit
+ExecStart=/usr/bin/python3 /opt/tracker-autovisit/web-api.py
+Restart=on-failure
+RestartSec=5
+
+# Logs vers journal systemd (pas de fichier dedie pour l'instant)
+StandardOutput=journal
+StandardError=journal
+SyslogIdentifier=tracker-autovisit-web
+
+# Securite raisonnable (User=root + acces sites.d en ecriture, donc on ne peut pas
+# tout durcir, mais on protege ce qui peut l'etre sans casser la fonctionnalite)
+NoNewPrivileges=true
+ProtectSystem=full
+ProtectHome=read-only
+PrivateTmp=true
+
+[Install]
+WantedBy=multi-user.target
