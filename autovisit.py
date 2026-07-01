@@ -506,6 +506,7 @@ def visit_site_playwright(site):
             password_field = site.get("password_field", "password")
             submit_selector = site.get("playwright_submit", "button[type=submit]")
             pwd_selector = site.get("playwright_password_selector")
+            user_selector = site.get("playwright_username_selector")
 
             # Attendre que le champ password soit pret (utile pour les hooks JS / LiveView)
             if pwd_selector:
@@ -514,8 +515,12 @@ def visit_site_playwright(site):
                     page.wait_for_timeout(2000)
                 except Exception:
                     pass
-            if username_field and site.get("username"):
-                page.fill("input[name='" + username_field + "']", site["username"])
+            if site.get("username"):
+                if user_selector:
+                    page.wait_for_selector(user_selector, timeout=15000)
+                    page.fill(user_selector, site["username"])
+                elif username_field:
+                    page.fill("input[name='" + username_field + "']", site["username"])
             if pwd_selector:
                 page.fill(pwd_selector, site["password"])
             else:
