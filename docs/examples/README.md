@@ -1,6 +1,6 @@
 # Exemples de configuration
 
-Cette page documente les 12 exemples de fichiers `sites.d/*.json` fournis avec le projet. Chaque cas illustre une combinaison de champs typique pour un type de site donné. Les exemples sont classés du plus simple au plus complexe.
+Cette page documente les 13 exemples de fichiers `sites.d/*.json` fournis avec le projet. Chaque cas illustre une combinaison de champs typique pour un type de site donné. Les exemples sont classés du plus simple au plus complexe.
 
 Pour la liste complète et la sémantique de chaque champ, voir le tableau « Champs disponibles par site » du [README principal](../../README.md).
 
@@ -176,6 +176,22 @@ Variante hybride : le POST de login est traité comme un appel AJAX (la réponse
 - Pas de `success_json_field` ni de `success_keywords` appliqué au POST : la réponse est vide.
 - `success_keywords` est appliqué au `verify_url` (une page de tableau de bord), qui se charge en HTML classique après que la session est établie.
 - `extract_hidden_fields: true` reste nécessaire pour récupérer le token CSRF Laravel posté en AJAX.
+
+---
+
+## 13 — Site Filament/Livewire (Playwright + sélecteurs custom)
+
+**Fichier** : [`13-filament-livewire.json`](13-filament-livewire.json)
+
+De nombreux trackers récents utilisent Filament (panneau admin Laravel) ou Livewire (composants dynamiques) pour leur page de connexion. Ces frameworks n'exposent pas d'attribut `name` HTML classique sur les inputs, mais utilisent des sélecteurs `wire:model`, `x-model` ou des IDs générés dynamiquement. Le POST direct via `requests` est impossible : le formulaire est soumis par une requête chiffrée vers `/livewire/update` avec un snapshot signé HMAC.
+
+**Points clés** :
+- `use_playwright: true` bascule sur Playwright, seul moyen fiable de piloter le formulaire.
+- `playwright_username_selector` et `playwright_password_selector` désignent des sélecteurs CSS custom (ici `input[wire\:model="data.email"]`). Le `\:` échappe le deux-points dans le sélecteur CSS ; dans le JSON, cela s'écrit `\\:`.
+- `username_field` reste défini (fallback si le sélecteur custom est absent), mais c'est le sélecteur qui prend le dessus.
+- `playwright_wait_url_change: 15` attend explicitement un changement d'URL après le clic. Indispensable avec Livewire : le framework garde des connexions vivantes (long-polling ou websocket) qui empêchent l'événement `networkidle` de se déclencher.
+- Les regex de stats sont ancrées sur les libellés en langue naturelle (ici en anglais : `Uploaded`, `Downloaded`, `Ratio`, `Bonus`). C'est moins robuste qu'un `id` HTML mais suffisamment stable en pratique. Si le tracker est en français ou dans une autre langue, adapter les libellés.
+- La classe Tailwind `text-3xl font-extrabold` est un pattern fréquent dans les templates Filament récents ; à adapter si le site utilise un autre thème.
 
 ---
 

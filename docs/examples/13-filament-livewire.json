@@ -1,0 +1,23 @@
+{
+    "name": "MonTrackerLivewire",
+    "url": "https://filament.example/admin/login",
+    "post_url": "https://filament.example/admin/login",
+    "username_field": "email",
+    "password_field": "password",
+    "username": "VOTRE_EMAIL",
+    "password": "VOTRE_MOT_DE_PASSE",
+    "use_playwright": true,
+    "playwright_username_selector": "input[wire\\:model=\"data.email\"]",
+    "playwright_password_selector": "input[wire\\:model=\"data.password\"]",
+    "playwright_submit": "button[type=\"submit\"]:visible",
+    "playwright_wait_url_change": 15,
+    "verify_url": "https://filament.example/user/monusername",
+    "success_keywords": ["monusername"],
+    "stats": {
+        "upload":   "Uploaded\\s*</div>\\s*<div[^>]*text-3xl[^>]*>\\s*([^<\\s][^<]*?)\\s*</div>",
+        "download": "Downloaded\\s*</div>\\s*<div[^>]*text-3xl[^>]*>\\s*([^<\\s][^<]*?)\\s*</div>",
+        "ratio":    "Ratio\\s*</div>\\s*<div[^>]*text-3xl[^>]*>\\s*([^<\\s][^<]*?)\\s*</div>",
+        "bonus":    "Bonus\\s*</div>\\s*<div[^>]*text-3xl[^>]*>\\s*([^<\\s][^<]*?)\\s*</div>"
+    },
+    "enabled": true
+}
