@@ -183,6 +183,8 @@ Le bloc `retention` est optionnel (mais fortement conseillé...). Si présent, l
 | `cf_solver` | | URL d'une instance FlareSolverr (ex. `http://127.0.0.1:8191/v1`). Résout le challenge Cloudflare à la volée et rend `session_cookies_file` et `user_agent` optionnels |
 | `cf_solver_timeout` | | Délai max (secondes) accordé à FlareSolverr pour résoudre le challenge (défaut : 60) |
 
+`cf_solver` fait passer le site par la fonction `solve_cloudflare()` : une requête `request.get` est envoyée à FlareSolverr sur l'URL cible, qui retourne à la fois les cookies de la session résolue et l'User-Agent effectivement utilisé par son navigateur interne. Ce couple cookies/UA est injecté dans la session `requests` du site via `visit_site_session`. Réutiliser l'UA retourné n'est pas cosmétique : le cookie `cf_clearance` lui est lié côté Cloudflare, sans quoi la session résolue est immédiatement invalidée.
+
 ---
 
 ## Détection CSRF automatique
