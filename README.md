@@ -40,12 +40,14 @@ Vue d'ensemble de l'interface web (dashboard) :
 
 ## Installation
 
-Sur Debian ou Debian-like, installer Python et pip, puis l'ensemble des dépendances Python en un coup :
+Sur Debian ou Debian-like, installer Python et le module venv, puis créer un environnement virtuel dédié au projet (conforme aux usages Debian, sans `--break-system-packages`) :
 
 ```bash
-apt install python3 python3-pip
-pip install requests pyotp curl_cffi playwright --break-system-packages
-playwright install firefox
+apt install python3 python3-venv
+cd /opt/tracker-autovisit
+python3 -m venv .venv
+.venv/bin/pip install -r requirements.txt
+.venv/bin/playwright install firefox
 ```
 
 Ajouter le conteneur FlareSolverr (une seule instance suffit pour tous les sites concernés) :

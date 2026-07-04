@@ -1,0 +1,4 @@
+requests
+pyotp
+curl_cffi
+playwright

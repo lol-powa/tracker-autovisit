@@ -8,7 +8,7 @@ Type=simple
 User=root
 Group=root
 WorkingDirectory=/opt/tracker-autovisit
-ExecStart=/usr/bin/python3 /opt/tracker-autovisit/web-api.py
+ExecStart=/opt/tracker-autovisit/.venv/bin/python3 /opt/tracker-autovisit/web-api.py
 Restart=on-failure
 RestartSec=5
 

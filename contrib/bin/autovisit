@@ -1,2 +1,2 @@
 #!/bin/sh
-exec python3 /opt/tracker-autovisit/autovisit.py "$@"
+exec /opt/tracker-autovisit/.venv/bin/python3 /opt/tracker-autovisit/autovisit.py "$@"
