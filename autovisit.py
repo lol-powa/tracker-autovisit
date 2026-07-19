@@ -310,6 +310,27 @@ def is_retryable_error(msg):
         return True
     return False
 
+MAINTENANCE_KEYWORDS = [
+    "maintenance",
+    "hors ligne",
+    "back soon",
+    "temporarily unavailable",
+    "site is down",
+    "we'll be back",
+    "we will be back",
+    "revenez bientot",
+    "revenez bient\u00f4t",
+    "under maintenance",
+]
+
+def detect_maintenance(text):
+    """Detection heuristique d'une page de maintenance via mots-cles generiques
+    (MAINTENANCE_KEYWORDS), independante du tracker visite."""
+    if not text:
+        return False
+    t = text.lower()
+    return any(kw in t for kw in MAINTENANCE_KEYWORDS)
+
 def init_history_db():
     """Cree la table stat_snapshots si elle n existe pas."""
     import sqlite3
@@ -501,6 +522,12 @@ def visit_site_playwright(site):
 
             log.info("[" + name + "] Chargement de la page de login (Playwright) : " + site["url"])
             page.goto(site["url"], timeout=timeout)
+            page.wait_for_timeout(2000)
+            if detect_maintenance(page.inner_text("body")):
+                browser.close()
+                msg = "MAINTENANCE [" + name + "] Site en maintenance (detection automatique)"
+                log.warning(msg)
+                return False, msg, {"maintenance": True}
 
             username_field = site.get("username_field", "username")
             password_field = site.get("password_field", "password")
@@ -914,6 +941,11 @@ def visit_site_session(site):
         log.error(msg)
         return False, msg, None
 
+    if detect_maintenance(rv.text):
+        msg = "MAINTENANCE [" + name + "] Site en maintenance (detection automatique)"
+        log.warning(msg)
+        return False, msg, {"maintenance": True}
+
     body_lower = rv.text.lower()
 
     # Stats
@@ -999,6 +1031,10 @@ def visit_site(site):
 
         log.info("[" + name + "] Chargement de la page de login : " + site["url"])
         r = session.get(site["url"], timeout=timeout, headers=get_headers)
+        if detect_maintenance(r.text):
+            msg = "MAINTENANCE [" + name + "] Site en maintenance (detection automatique)"
+            log.warning(msg)
+            return False, msg, {"maintenance": True}
         if r.status_code != 200:
             msg = "ECHEC [" + name + "] Page de login inaccessible (HTTP " + str(r.status_code) + ")"
             log.error(msg)
@@ -1561,6 +1597,7 @@ def main():
         log.info("Purge automatique : " + str(n_hist) + " snapshot(s), " + str(n_logs) + " log(s)")
     results_ok  = []
     results_err = []
+    results_maintenance = []
     # Collecte pour status.json
     status_sites = []
     # Handler de capture des logs pour extraire stats/alertes par site
@@ -1614,21 +1651,28 @@ def main():
             results_ok.append("OK [" + site_name + "] " + alerte_msg)
             site_alert = "MP non lu"
             status_sites.append({"name": site_name, "url": site_domain, "ok": True, "stats": site_stats_str, "alert": site_alert})
+        elif not ok and extras and extras.get("maintenance"):
+            results_maintenance.append(msg)
+            status_sites.append({"name": site["name"], "url": site_domain, "ok": None, "stats": site_stats_str, "alert": site_alert, "maintenance": True})
         else:
             (results_ok if ok else results_err).append(msg)
             status_sites.append({"name": site["name"], "url": site_domain, "ok": ok, "stats": site_stats_str, "alert": site_alert})
         # Historisation SQLite
-        snap_status = "ok" if ok else "error"
+        if extras and extras.get("maintenance"):
+            snap_status = "maintenance"
+        else:
+            snap_status = "ok" if ok else "error"
         snap_error = None if ok else msg
         write_snapshot(site["name"], snap_status, snap_error, site_alert, parse_stats_str(site_stats_str))
     log.removeHandler(capture_handler)
     log.info("=== Resume ===")
-    for m in results_ok + results_err:
+    for m in results_ok + results_maintenance + results_err:
         log.info(m)
     # Categorisation pour notifications
     ko_sites = [e for e in status_sites if e.get("ok") is False]
     mp_sites = [e for e in status_sites if e.get("ok") is True and e.get("alert")]
     ok_sites = [e for e in status_sites if e.get("ok") is True and not e.get("alert")]
+    maintenance_sites = [e for e in status_sites if e.get("maintenance")]
     n_total = len(status_sites)
     n_ok    = len(ok_sites) + len(mp_sites)
     n_ko    = len(ko_sites)
@@ -1656,6 +1700,11 @@ def main():
                 for e in ok_sites:
                     mail_body += "- " + e["name"] + "\n"
                 mail_body += "\n"
+            if maintenance_sites:
+                mail_body += "Sites en maintenance detectee (" + str(len(maintenance_sites)) + ") :\n"
+                for e in maintenance_sites:
+                    mail_body += "- " + e["name"] + "\n"
+                mail_body += "\n"
             if ko_sites:
                 err_by_name = {}
                 for m in results_err:
@@ -1668,7 +1717,8 @@ def main():
                     err_short = err_msg.split("\n")[0][:200]
                     mail_body += "- " + e["name"] + " : " + err_short + "\n"
             send_mail(cfg, mail_subject, mail_body)
-        # ntfy : toujours si KO ou MP (sauf --silent)
+        # ntfy : toujours si KO ou MP (sauf --silent) -- la maintenance ne declenche pas
+        # de notification a elle seule, mais s'ajoute au corps si un envoi a deja lieu
         if ko_sites or mp_sites:
             ntfy_title = "Autovisit " + today
             parts = []
@@ -1676,6 +1726,8 @@ def main():
                 parts.append("KO: " + ", ".join(e["name"] for e in ko_sites))
             if mp_sites:
                 parts.append("MP: " + ", ".join(e["name"] for e in mp_sites))
+            if maintenance_sites:
+                parts.append("MAINT: " + ", ".join(e["name"] for e in maintenance_sites))
             ntfy_body = " | ".join(parts)
             send_ntfy(cfg, ntfy_title, ntfy_body)
     # Ecriture status.json
