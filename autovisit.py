@@ -315,21 +315,32 @@ MAINTENANCE_KEYWORDS = [
     "hors ligne",
     "back soon",
     "temporarily unavailable",
+    "currently unavailable",
     "site is down",
     "we'll be back",
     "we will be back",
     "revenez bientot",
     "revenez bient\u00f4t",
     "under maintenance",
+    "scheduled maintenance",
+    "temporairement indisponible",
+    "site indisponible",
+    "service indisponible",
+    "en cours de maintenance",
+    "migration en cours",
+    "intermission",
 ]
 
-def detect_maintenance(text):
+def detect_maintenance(text, extra_keywords=None):
     """Detection heuristique d'une page de maintenance via mots-cles generiques
-    (MAINTENANCE_KEYWORDS), independante du tracker visite."""
+    (MAINTENANCE_KEYWORDS), independante du tracker visite. extra_keywords permet
+    d'ajouter du vocabulaire propre a un site (page de coupure atypique), sans quoi
+    la detection reste purement automatique a chaque run."""
     if not text:
         return False
     t = text.lower()
-    return any(kw in t for kw in MAINTENANCE_KEYWORDS)
+    keywords = MAINTENANCE_KEYWORDS + list(extra_keywords or [])
+    return any(kw.lower() in t for kw in keywords)
 
 def init_history_db():
     """Cree la table stat_snapshots si elle n existe pas."""
@@ -523,7 +534,7 @@ def visit_site_playwright(site):
             log.info("[" + name + "] Chargement de la page de login (Playwright) : " + site["url"])
             page.goto(site["url"], timeout=timeout)
             page.wait_for_timeout(2000)
-            if detect_maintenance(page.inner_text("body")):
+            if detect_maintenance(page.inner_text("body"), site.get("maintenance_keywords")):
                 browser.close()
                 msg = "MAINTENANCE [" + name + "] Site en maintenance (detection automatique)"
                 log.warning(msg)
@@ -941,7 +952,7 @@ def visit_site_session(site):
         log.error(msg)
         return False, msg, None
 
-    if detect_maintenance(rv.text):
+    if detect_maintenance(rv.text, site.get("maintenance_keywords")):
         msg = "MAINTENANCE [" + name + "] Site en maintenance (detection automatique)"
         log.warning(msg)
         return False, msg, {"maintenance": True}
@@ -1031,7 +1042,7 @@ def visit_site(site):
 
         log.info("[" + name + "] Chargement de la page de login : " + site["url"])
         r = session.get(site["url"], timeout=timeout, headers=get_headers)
-        if detect_maintenance(r.text):
+        if detect_maintenance(r.text, site.get("maintenance_keywords")):
             msg = "MAINTENANCE [" + name + "] Site en maintenance (detection automatique)"
             log.warning(msg)
             return False, msg, {"maintenance": True}
