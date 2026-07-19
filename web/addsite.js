@@ -148,7 +148,13 @@
   tr.row-ko td a{ color:var(--dim) !important; }
   tr.row-ko:hover td{ background:rgba(130,130,130,.11) !important; }
   .dot-ko{ background:#9aa0a6 !important; }
-  html.av-dark tr.row-ko:hover td{ background:rgba(170,170,170,.10) !important; }`;
+  html.av-dark tr.row-ko:hover td{ background:rgba(170,170,170,.10) !important; }
+  tr.row-maintenance td{ background:rgba(214,168,106,.08) !important; color:var(--dim) !important; }
+  tr.row-maintenance td a{ color:var(--dim) !important; }
+  tr.row-maintenance:hover td{ background:rgba(214,168,106,.14) !important; }
+  tr.row-maintenance td.maint-info{ color:var(--alert,#b07d2a) !important; font-style:italic; }
+  .dot-maintenance{ background:var(--alert,#d6a86a) !important; }
+  html.av-dark tr.row-maintenance:hover td{ background:rgba(214,168,106,.16) !important; }`;
   document.head.appendChild(ng);
 
   // pastille « en ligne » verte pulsante, triangle d'alerte clignotant, en-têtes triables
@@ -1486,6 +1492,7 @@
     '<circle cx="12" cy="17.7" r="1.15" fill="#fff"/></svg></span>';
   function statusIndicator(kind){
     if(kind==="ko") return WARN_TRI;
+    if(kind==="maintenance") return '<span class="dot dot-maintenance" title="Maintenance detectee automatiquement"></span>';
     var c = kind==="ok" ? "dot dot-live"
           : kind==="alert" ? "dot dot-alert dot-pulse"
           : kind==="wait" ? "dot dot-wait"
@@ -1568,10 +1575,13 @@
       var info={slug:site.slug,name:site.name,enabled:site.enabled!==false};
       var tr=document.createElement("tr");
       var disabled = site.enabled===false;
-      var kind = disabled?"off":(!st?"wait":(!st.ok?"ko":(st.alert?"alert":"ok")));
+      var kind = disabled?"off":(!st?"wait":(st.maintenance?"maintenance":(!st.ok?"ko":(st.alert?"alert":"ok"))));
       var html = nameCell(site.name, (st&&st.url)||site.url, kind, (st&&!disabled)?st.alert:null);
       if(disabled){ tr.className="row-disabled"; html+='<td class="left off-info" colspan="8">Désactivé</td>'; }
       else if(!st){ tr.className="row-ko"; html+='<td class="left off-info" colspan="8" style="font-style:italic">En attente de la première visite…</td>'; }
+      else if(st.maintenance){ tr.className="row-maintenance"; var last=fmtDate(st.last_ok);
+        html+='<td class="left maint-info" colspan="7">Maintenance détectée'+(last?(" — dernière connexion le "+last):"")+'</td>'
+            + cell(fmtDate(st.last_ok),true); }
       else if(!st.ok){ tr.className="row-ko"; var last=fmtDate(st.last_ok);
         html+='<td class="left ko-info" colspan="7">'+(last?("Échec — dernière connexion le "+last):"Échec — aucune connexion réussie")+'</td>'
             + cell(fmtDate(st.last_ok),true); }
