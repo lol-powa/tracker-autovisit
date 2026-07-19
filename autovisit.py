@@ -329,6 +329,8 @@ MAINTENANCE_KEYWORDS = [
     "en cours de maintenance",
     "migration en cours",
     "intermission",
+    "not available",
+    "will return",
 ]
 
 _SCRIPT_STYLE_RE = re.compile(r"<(script|style)\b[^>]*>.*?</\1>", re.IGNORECASE | re.DOTALL)
