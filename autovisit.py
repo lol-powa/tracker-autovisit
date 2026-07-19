@@ -331,14 +331,20 @@ MAINTENANCE_KEYWORDS = [
     "intermission",
 ]
 
+_SCRIPT_STYLE_RE = re.compile(r"<(script|style)\b[^>]*>.*?</\1>", re.IGNORECASE | re.DOTALL)
+
 def detect_maintenance(text, extra_keywords=None):
     """Detection heuristique d'une page de maintenance via mots-cles generiques
     (MAINTENANCE_KEYWORDS), independante du tracker visite. extra_keywords permet
     d'ajouter du vocabulaire propre a un site (page de coupure atypique), sans quoi
-    la detection reste purement automatique a chaque run."""
+    la detection reste purement automatique a chaque run.
+    Le contenu des balises <script>/<style> est exclu de la recherche : les bundles
+    JS (ex. Next.js) embarquent parfois des noms de composants (ex. "MaintenanceCheck")
+    qui matcheraient a tort sans etre du texte reellement affiche."""
     if not text:
         return False
-    t = text.lower()
+    cleaned = _SCRIPT_STYLE_RE.sub(" ", text)
+    t = cleaned.lower()
     keywords = MAINTENANCE_KEYWORDS + list(extra_keywords or [])
     return any(kw.lower() in t for kw in keywords)
 
