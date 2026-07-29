@@ -676,6 +676,23 @@ def visit_site_playwright(site):
                         log.warning("[" + name + "] extra_url HTTP " + str(r_extra.status))
                 except Exception as e:
                     log.warning("[" + name + "] extra_url echec : " + str(e))
+
+            # Ratio via page HTML dediee, quand absent du JSON principal (extra_url
+            # reste JSON pur, ceci est un second point de collecte cible sur un seul champ).
+            ratio_data = None
+            ratio_url_cfg = site.get("ratio_url")
+            ratio_regex_cfg = site.get("ratio_regex")
+            if ratio_url_cfg and ratio_regex_cfg:
+                try:
+                    page.goto(ratio_url_cfg, timeout=site.get("timeout", 20) * 1000)
+                    page.wait_for_load_state("networkidle", timeout=site.get("timeout", 20) * 1000)
+                    ratio_html = page.content()
+                    m = re.search(ratio_regex_cfg, ratio_html)
+                    if m:
+                        ratio_data = m.group(1)
+                except Exception as e:
+                    log.warning("[" + name + "] ratio_url echec : " + str(e))
+
             cookies = page.context.cookies()
             browser.close()
 
@@ -696,6 +713,8 @@ def visit_site_playwright(site):
                             val = get_json_path(extra_data, jpath)
                             if val is not None:
                                 stats[label] = str(val)
+                    if ratio_data is not None:
+                        stats["Ratio"] = ratio_data
                     stats_str = format_stats(stats, site)
                     log.info("[" + name + "] Stats -- " + stats_str)
             # MP via mp_url intercepte
