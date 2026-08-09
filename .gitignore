@@ -51,3 +51,6 @@ downloads/
 
 # Scripts de patch ephemeres
 tools/
+
+# Contexte Claude Code (infra/conventions internes, pas de diffusion publique)
+CLAUDE.md
