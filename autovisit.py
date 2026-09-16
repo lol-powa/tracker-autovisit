@@ -763,10 +763,20 @@ def visit_site_playwright(site):
         body_lower = rv.text.lower()
 
         site_stats = site.get("stats", {})
+        stats = {}
         if site_stats:
             stats = extract_stats(rv.text, site_stats)
-            stats_str = format_stats(stats, site)
-            log.info("[" + name + "] Stats -- " + stats_str)
+        # Stats supplementaires via extra_url (deja recuperees plus haut via
+        # page.request pendant que le navigateur etait ouvert) : fusion ici pour
+        # les sites Playwright sans playwright_intercept (ex : HDF).
+        extra_fields = site.get("extra_stats")
+        if extra_data and extra_fields:
+            for label, jpath in extra_fields.items():
+                val = get_json_path(extra_data, jpath)
+                if val is not None:
+                    stats[label] = str(val)
+        if stats:
+            log.info("[" + name + "] Stats -- " + format_stats(stats, site))
 
         alert_keywords = site.get("alert_keywords", [])
         for kw in alert_keywords:
