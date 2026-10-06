@@ -646,6 +646,10 @@ def visit_site_playwright(site):
                         alert_label = site.get("alert_label", kw)
                         log.info("[" + name + "] ALERTE : " + alert_label)
                         return True, "ALERTE [" + name + "] " + str(kw), {"alert": True, "alert_kw": str(kw)}
+                # Alertes MP via expression reguliere dans le HTML (alert_patterns)
+                pattern_label = check_alert_patterns(body_lower, site, name)
+                if pattern_label:
+                    return True, "ALERTE [" + name + "] " + str(pattern_label), {"alert": True, "alert_kw": str(pattern_label)}
 
                 # Verification succes
                 custom_keywords = site.get("success_keywords", [])
@@ -784,6 +788,10 @@ def visit_site_playwright(site):
                 alert_label = site.get("alert_label", kw)
                 log.info("[" + name + "] ALERTE : " + alert_label)
                 return True, "ALERTE [" + name + "] " + str(kw), {"alert": True, "alert_kw": str(kw)}
+        # Alertes MP via expression reguliere dans le HTML (alert_patterns)
+        pattern_label = check_alert_patterns(body_lower, site, name)
+        if pattern_label:
+            return True, "ALERTE [" + name + "] " + str(pattern_label), {"alert": True, "alert_kw": str(pattern_label)}
 
         custom_keywords = site.get("success_keywords", [])
         if custom_keywords:
@@ -862,6 +870,22 @@ def check_alert_stat(stats, site, name):
         label = site.get("alert_label", key)
         log.info("[" + name + "] ALERTE : " + label)
         return label
+    return None
+
+def check_alert_patterns(html, site, name):
+    """Si l'une des expressions de alert_patterns trouve une correspondance
+    dans le HTML, retourne le label d'alerte, sinon None. Recherche insensible
+    a la casse, une expression invalide est signalee puis ignoree."""
+    for pattern in site.get("alert_patterns", []):
+        try:
+            found = re.search(pattern, html, re.IGNORECASE)
+        except re.error as e:
+            log.warning("[" + name + "] alert_patterns invalide (" + pattern + ") : " + str(e))
+            continue
+        if found:
+            label = site.get("alert_label", pattern)
+            log.info("[" + name + "] ALERTE : " + label)
+            return label
     return None
 
 def format_stats(stats, site):
@@ -1023,6 +1047,10 @@ def visit_site_session(site):
             alert_label = site.get("alert_label", kw)
             log.info("[" + name + "] ALERTE : " + alert_label)
             return True, "ALERTE [" + name + "] " + str(kw), {"alert": True, "alert_kw": str(kw)}
+    # Alertes MP via expression reguliere dans le HTML (alert_patterns)
+    pattern_label = check_alert_patterns(body_lower, site, name)
+    if pattern_label:
+        return True, "ALERTE [" + name + "] " + str(pattern_label), {"alert": True, "alert_kw": str(pattern_label)}
 
     # Verification succes
     custom_keywords = site.get("success_keywords", [])
@@ -1181,6 +1209,10 @@ def visit_site(site):
                                             alert_label = site.get("alert_label", kw)
                                             log.info("[" + name + "] ALERTE : " + alert_label)
                                             return True, "ALERTE [" + name + "] " + str(kw), {"alert": True, "alert_kw": str(kw)}
+                                # Alertes MP via expression reguliere dans le HTML (alert_patterns)
+                                pattern_label = check_alert_patterns(rv.text, site, name)
+                                if pattern_label:
+                                    return True, "ALERTE [" + name + "] " + str(pattern_label), {"alert": True, "alert_kw": str(pattern_label)}
                                 # Stats
                                 site_stats = site.get("stats", {})
                                 stats = {}
@@ -1293,6 +1325,10 @@ def visit_site(site):
                                 alert_label = site.get("alert_label", kw)
                                 log.info("[" + name + "] ALERTE : " + alert_label)
                                 return True, "ALERTE [" + name + "] " + str(kw), {"alert": True, "alert_kw": str(kw)}
+                        # Alertes MP via expression reguliere dans le HTML (alert_patterns)
+                        pattern_label = check_alert_patterns(html_source, site, name)
+                        if pattern_label:
+                            return True, "ALERTE [" + name + "] " + str(pattern_label), {"alert": True, "alert_kw": str(pattern_label)}
                         msg = "OK [" + name + "] Connexion reussie (champ JSON : " + success_json_field + ")"
                         log.info(msg)
                         return True, msg, None
@@ -1388,6 +1424,10 @@ def visit_site(site):
                             alert_label = site.get("alert_label", kw)
                             log.info("[" + name + "] ALERTE : " + alert_label)
                             return True, "ALERTE [" + name + "] " + str(kw), {"alert": True, "alert_kw": str(kw)}
+                    # Alertes MP via expression reguliere dans le HTML (alert_patterns)
+                    pattern_label = check_alert_patterns(body_lower, site, name)
+                    if pattern_label:
+                        return True, "ALERTE [" + name + "] " + str(pattern_label), {"alert": True, "alert_kw": str(pattern_label)}
                     msg = "OK [" + name + "] Connexion reussie apres 2FA (mot-cle : " + matched + ")"
                     log.info(msg)
                     return True, msg, None
@@ -1442,6 +1482,10 @@ def visit_site(site):
                     alert_label = site.get("alert_label", kw)
                     log.info("[" + name + "] ALERTE : " + alert_label)
                     return True, "ALERTE [" + name + "] " + str(kw), {"alert": True, "alert_kw": str(kw)}
+        # Alertes MP via expression reguliere dans le HTML (alert_patterns)
+        pattern_label = check_alert_patterns(body_lower, site, name)
+        if pattern_label:
+            return True, "ALERTE [" + name + "] " + str(pattern_label), {"alert": True, "alert_kw": str(pattern_label)}
 
         custom_keywords = site.get("success_keywords", [])
         if custom_keywords:
@@ -1517,6 +1561,8 @@ def list_sites(cfg):
             return "api"
         if s.get("alert_stat"):
             return "stat"
+        if s.get("alert_patterns"):
+            return "re"
         if s.get("alert_keywords"):
             return "kw"
         return "-"

@@ -157,6 +157,7 @@ Le bloc `retention` est optionnel (mais fortement conseillé...). Si présent, l
 | `success_keywords` | | Mots-clés attendus dans le HTML après connexion |
 | `success_json_field` | | Champ JSON attendu dans la réponse API (ex: `"success"`) |
 | `alert_keywords` | | Mots-clés déclenchant une alerte MP (substring exact du HTML) |
+| `alert_patterns` | | Liste d'expressions régulières déclenchant une alerte MP si l'une d'elles trouve une correspondance dans le HTML (insensible à la casse) |
 | `alert_stat` | | Nom d'une clé de `stats` à surveiller : si sa valeur numérique est > 0, déclenche une alerte MP. Le compteur est exclu de l'affichage des stats. |
 | `alert_label` | | Libellé de l'alerte MP dans les logs et notifications (défaut : le mot-clé ou la clé surveillée) |
 | `stats` | | Dict d'expressions régulières pour extraire les statistiques depuis le HTML. Valeur : chaîne (regex simple) ou objet `{"pattern": ..., "unit": "auto"}` pour forcer la conversion d'unité |
@@ -425,9 +426,18 @@ Les fichiers statiques de `/var/www/autovisit/` doivent appartenir à `www-data:
 
 ## Alertes MP
 
-Trois mécanismes complémentaires, à choisir selon ce que le site expose.
+Quatre mécanismes complémentaires, à choisir selon ce que le site expose.
 
 **`alert_keywords`** repère une chaîne exacte dans le HTML après connexion. La valeur doit être unique sur la page et n'apparaître que lorsqu'il y a un message non lu (typiquement une classe CSS « highlighted », un badge spécifique ou un libellé du genre « 3 nouveaux messages »).
+
+**`alert_patterns`** applique une liste d'expressions régulières au HTML après connexion ; la première qui trouve une correspondance déclenche l'alerte. Utile quand le marqueur de message non lu existe aussi ailleurs dans la page et qu'une chaîne exacte ne suffit plus à le distinguer : l'expression l'ancre alors à son contexte. Par exemple, un indicateur animé présent à la fois sous l'icône de la boîte de réception et dans la messagerie instantanée :
+
+```json
+"alert_patterns": ["fa-envelope\"></i>\\s*<svg viewBox=\"0 0 100 100\""],
+"alert_label": "MP non lu"
+```
+
+`\s` couvre les sauts de ligne, ce qui permet de franchir l'indentation du HTML. Une expression invalide est signalée dans le journal et ignorée, sans faire échouer la visite.
 
 **`alert_stat`** surveille une statistique déjà extraite (une clé de `stats`) : si sa valeur numérique dépasse 0, l'alerte se déclenche. Pratique quand le site expose un compteur de messages non lus qu'on récupère par ailleurs comme stat. Le compteur disparaît de la ligne `Stats --` pour ne pas polluer.
 
@@ -462,6 +472,6 @@ Affiche un récapitulatif de tous les sites présents dans `data/sites.d/` :
 | TOTP | `✓` / `-` | Secret TOTP configuré |
 | 2FA | `inline` / `page` / `api_json` / `-` | Mode de second facteur : posté avec le login, sur page dédiée, ou via API JSON |
 | Stats | `✓` / `-` | Expressions `stats` ou `stats_json` configurées |
-| MP | `api` / `stat` / `kw` / `-` | Mécanisme de détection des MP non lus : `mp_url`, `alert_stat`, `alert_keywords` |
+| MP | `api` / `stat` / `re` / `kw` / `-` | Mécanisme de détection des MP non lus : `mp_url`, `alert_stat`, `alert_patterns`, `alert_keywords` |
 | CF | `✓` / `-` | FlareSolverr configuré (`cf_solver`) |
 | Dernier OK | `MM-DD HH:MM` | Date de la dernière connexion réussie d'après `history.db` |
